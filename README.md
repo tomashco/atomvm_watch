@@ -1,7 +1,7 @@
-# atomvm_m5stick
+# atomvm_watch
 
-A browser emulator and app installer for the [M5StickC Plus 2](https://docs.m5stack.com/en/core/M5StickC%20PLUS2)
-running [AtomVM](https://github.com/atomvm/AtomVM). Write apps in Elixir, Erlang or Gleam against
+A platform for running [AtomVM](https://github.com/atomvm/AtomVM) apps on ESP32 watches: a browser emulator, a web installer, and board profiles. The first supported board is the [M5StickC Plus 2](https://docs.m5stack.com/en/core/M5StickC%20PLUS2).
+Write apps in Elixir, Erlang or Gleam against
 [atomvm_m5](https://github.com/pguyot/atomvm_m5), run them in the browser, then flash them to the
 watch over USB from the same page. Think Bangle.js app loader, for the BEAM.
 
@@ -18,7 +18,7 @@ Milestone 2 is the on-device app loader ("app store"). See `docs/superpowers/spe
 ## Setup
 
 ```sh
-git clone <this repo> && cd atomvm_m5stick
+git clone <this repo> && cd atomvm_watch
 mise install          # Erlang 27, Elixir 1.18, rebar3, Node 22, pnpm, esptool
 mise run setup        # deps.get, pnpm install, Playwright browsers
 ```
@@ -28,7 +28,7 @@ mise run setup        # deps.get, pnpm install, Playwright browsers
 ```sh
 mise run dev          # emulator at http://localhost:5173 with examples/clock preloaded
 mise run test         # Erlang unit tests, JS renderer tests, Playwright e2e
-mise run firmware     # builds firmware/AtomVM-m5stickc-plus2.img in Docker
+mise run firmware     # builds firmware/m5stickc_plus2/AtomVM-m5stickc-plus2.img in Docker
 ```
 
 First time on a watch: open the emulator page, plug the watch in, click **Install runtime**.
@@ -48,7 +48,8 @@ mix atomvm.esp32.flash --port /dev/cu.usbserial-*
 | `web/` | Emulator page, display renderer, Web Serial installer |
 | `m5_emu_mix/` | `mix m5.emulate` task for Elixir projects |
 | `examples/clock/` | Reference Elixir app |
-| `firmware/` | Partition table and CI workflow for the ESP32 runtime image |
+| `boards/` | Board profiles: screen, buttons, device image, firmware manifest (first: `m5stickc_plus2`) |
+| `firmware/` | Partition tables and CI workflow for the ESP32 runtime images |
 | `docs/` | Specs and plans |
 
 Tasks are wired up as milestone 1 lands; `mise.toml` is the single source of truth for them.

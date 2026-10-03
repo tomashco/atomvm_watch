@@ -1,13 +1,15 @@
-# M5StickC Plus 2 AtomVM emulator and installer — design
+# atomvm_watch — emulator and installer for AtomVM watches, first board M5StickC Plus 2
 
 Date: 2026-10-03
 Status: approved for planning (milestone 1)
 
 ## 1. Goal
 
-Let people write apps for the M5StickC Plus 2 in Elixir, Erlang or Gleam against AtomVM, run them
-in a browser emulator, and install them on the real watch from the same web page, in the spirit of
-the Bangle.js app loader.
+`atomvm_watch` is a platform for running AtomVM apps on ESP32 watches: write apps in Elixir,
+Erlang or Gleam, run them in a browser emulator, and install them on the real watch from the same
+web page, in the spirit of the Bangle.js app loader. Boards are described by data (a board
+profile) so that adding a watch later does not change the emulator, the installer or the apps.
+The first and only board in milestone 1 is the M5StickC Plus 2.
 
 Milestone 1 (this spec): one app at a time. The emulator runs it, the page flashes the runtime
 and the app to a watch over USB, and an Elixir example proves the full loop.
@@ -48,17 +50,31 @@ Verified against upstream sources on 2026-10-03:
 
 ## 3. Architecture
 
-Three deliverables share one repository:
+Four deliverables share one repository:
 
-1. `m5_emu/` — an Erlang library whose modules have the exact names and arities of `atomvm_m5`
+1. `boards/<id>/board.json` — the board profile: id and display name, screen width, height and
+   native rotation, physical buttons (id, label, keyboard shortcut, position on the device
+   image), peripherals present (speaker, led, battery), the device image (SVG), the `m5` board
+   atom, the flash chip id and the firmware manifest URL. Milestone 1 ships
+   `boards/m5stickc_plus2/`.
+2. `m5_emu/` — an Erlang library whose modules have the exact names and arities of `atomvm_m5`
    and are implemented for the `emscripten` platform by forwarding to JavaScript. Packed as
-   `m5_emu.avm`.
-2. `web/` — a static page: the AtomVM wasm VM, the display renderer and device controls, and a
-   Web Serial installer. Hosted on GitHub Pages, also served locally.
-3. `firmware/` — a custom partition table and a CI workflow producing the ESP32 runtime image
-   (AtomVM + `atomvm_m5` component) that the installer flashes.
+   `m5_emu.avm`. Board-specific values (screen size, board atom, which buttons exist) are
+   passed in at `m5:begin_/1` time by the page from the profile; the library has no board
+   constants.
+3. `web/` — a static page: the AtomVM wasm VM, the display renderer and device controls, and a
+   Web Serial installer, all configured from the selected board profile. Hosted on GitHub
+   Pages, also served locally.
+4. `firmware/<board>/` — partition table, `sdkconfig.defaults` and a CI workflow producing the
+   ESP32 runtime image (AtomVM + `atomvm_m5` component) that the installer flashes for that
+   board.
 
 Plus `m5_emu_mix/` (a `mix m5.emulate` task) and `examples/clock/` (the reference Elixir app).
+
+Scope guard: milestone 1 has exactly one profile and no board picker UI beyond reading
+`?board=` from the URL (default `m5stickc_plus2`). The profile exists so the second board is a
+data change, not a redesign. Non-M5 watches would additionally need a board library other than
+`atomvm_m5`; that is out of scope and not pre-designed.
 
 The app-facing API is `atomvm_m5`, unchanged. An app compiles against `atomvm_m5`'s stub
 modules, runs on the device against the NIFs, and runs in the browser against `m5_emu`, which is
@@ -88,8 +104,9 @@ firmware.
 Same module names as `atomvm_m5`. Milestone 1 implements:
 
 - `m5`: `begin_/1` (starts the emulator processes, resets display state, registers
-  `m5_emu_input`), `get_board/0` (returns `m5stick_c_plus2`), `update/0` (drains input events,
-  advances button state machines).
+  `m5_emu_input`, reads the board profile values the page stored in the VM environment),
+  `get_board/0` (returns the profile's board atom, `m5stick_c_plus2` for the first board),
+  `update/0` (drains input events, advances button state machines).
 - `m5_display`: the drawing and text subset listed in 4.3, plus `width/0`, `height/0`,
   `get_rotation/0`, `set_rotation/1`, `set_brightness/1`, `sleep/0`, `wakeup/0`,
   `start_write/0`, `end_write/0`, `set_epd_mode/1` (no-op), `power_save*` (no-op).
@@ -154,6 +171,11 @@ Vite project, plain TypeScript, no framework. Files:
 
 - `index.html`, `src/main.ts`: page layout, loads `coi-serviceworker.js` first so COOP/COEP
   are in place before the VM module is fetched.
+- `src/board.ts`: loads `boards/<id>/board.json` (from `?board=`, default `m5stickc_plus2`),
+  validates it, and hands it to the renderer (screen size), input (button list and shortcuts),
+  the device frame (SVG with button hotspots), and the installer (chip id, firmware manifest).
+  It also passes screen size and board atom to the VM as environment variables that
+  `m5:begin_/1` reads.
 - `src/vm.ts`: instantiates the AtomVM module, registers stdout/stderr to the console pane,
   loads `m5_emu.avm` then the app `.avm` into the VM's filesystem and starts `main`.
 - `src/m5emu.ts`: the renderer. A 135x240 offscreen framebuffer drawn to a visible canvas at
@@ -177,7 +199,9 @@ The page never modifies the wasm binary; it is downloaded from the AtomVM releas
 
 ## 6. `firmware/`
 
-- `partitions-m5stickc-plus2.csv`: the default AtomVM 0.7 layout for the first 4 MB, plus an
+One directory per board, `firmware/m5stickc_plus2/` in milestone 1:
+
+- `partitions.csv`: the default AtomVM 0.7 layout for the first 4 MB, plus an
   `apps` data partition filling the remaining flash (about 4.6 MB). Milestone 1 does not use
   `apps`; defining it now means milestone 2 never needs a full erase on users' watches.
 - `sdkconfig.defaults`: `esp32` target, 8 MB flash, PSRAM on, custom partition CSV, Elixir
@@ -235,7 +259,9 @@ emulator and on the watch; it is the acceptance test for milestone 1.
 2. App loader: launcher app in `main.avm`, apps stored in the `apps` partition, runtime
    loading with `atomvm:add_avm_pack_binary/2`, installer writes to free slots, emulator
    models the `apps` partition. (Next spec.)
-3. Later: IMU, RTC, battery via I2C emulation; Gleam example; hosted gallery of apps.
+3. Later: more boards (other M5 devices first, since `atomvm_m5` covers them; non-M5 ESP32
+   watches need their own board library), IMU, RTC, battery via I2C emulation, Gleam example,
+   hosted gallery of apps.
 
 ## 11. Future direction, not planned: native emulation
 

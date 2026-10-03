@@ -1,4 +1,4 @@
-# Tool versions and tasks for atomvm_m5stick. Install mise (https://mise.jdx.dev), then `mise install`.
+# Tool versions and tasks for atomvm_watch. Install mise (https://mise.jdx.dev), then `mise install`.
 [tools]
 erlang = "27.3.4"
 elixir = "1.18.4-otp-27"
