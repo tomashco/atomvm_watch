@@ -105,7 +105,7 @@ Same module names as `atomvm_m5`. Milestone 1 implements:
 
 - `m5`: `begin_/1` (starts the emulator processes, resets display state, registers
   `m5_emu_input`, reads the board profile values the page stored in the VM environment),
-  `get_board/0` (returns the profile's board atom, `m5stick_c_plus2` for the first board),
+  `get_board/0` (returns the profile's board atom, `stick_cplus2` for the first board, matching `atomvm_m5`'s `stick_cplus` naming),
   `update/0` (drains input events, advances button state machines).
 - `m5_display`: the drawing and text subset listed in 4.3, plus `width/0`, `height/0`,
   `get_rotation/0`, `set_rotation/1`, `set_brightness/1`, `sleep/0`, `wakeup/0`,
@@ -194,8 +194,8 @@ Vite project, plain TypeScript, no framework. Files:
   `0x250000`. Progress and the device's serial log go to the console pane. Hidden when the
   browser lacks `navigator.serial`.
 
-The page never modifies the wasm binary; it is downloaded from the AtomVM release matching
-`ATOMVM_VERSION` at build time and committed to `web/public/`.
+The page never modifies the wasm binary; `scripts/fetch-atomvm.sh` downloads it from the AtomVM release matching
+`ATOMVM_VERSION`, verifies its sha256, and places it under `web/public/atomvm/` (gitignored, fetched at setup and in CI).
 
 ## 6. `firmware/`
 
@@ -204,7 +204,7 @@ One directory per board, `firmware/m5stickc_plus2/` in milestone 1:
 - `partitions.csv`: the default AtomVM 0.7 layout for the first 4 MB, plus an
   `apps` data partition filling the remaining flash (about 4.6 MB). Milestone 1 does not use
   `apps`; defining it now means milestone 2 never needs a full erase on users' watches.
-- `sdkconfig.defaults`: `esp32` target, 8 MB flash, PSRAM on, custom partition CSV, Elixir
+- `sdkconfig.m5stickc_plus2`: `esp32` target, 8 MB flash, PSRAM off in milestone 1, custom partition CSV, Elixir
   support on.
 - `.github/workflows/firmware.yml`: checks out AtomVM at `ATOMVM_VERSION`, adds `atomvm_m5`
   (pinned commit) under `components/`, builds in `espressif/idf:v5.5.1`, assembles a single
@@ -276,7 +276,7 @@ and device becomes a real problem.
 | Risk | Check in plan |
 |------|---------------|
 | `run_script` throughput too low for drawing-heavy loops | Benchmark 1000 `fill_rect` per second in the first emulator task; fall back to a shared binary ring buffer if needed |
-| Module shadowing order differs in a future AtomVM | E2E test asserts `m5:get_board/0` returns `m5stick_c_plus2` in the browser |
+| Module shadowing order differs in a future AtomVM | Node smoke test and E2E test assert `m5:get_board/0` returns `stick_cplus2` under the wasm VM |
 | Font or text wrapping differs from M5GFX | Golden frames compared against photos of the watch for the example screens |
 | `atomvm_m5`, AtomVM wasm and firmware versions drift | Single `ATOMVM_VERSION` plus pinned `atomvm_m5` commit; CI builds all three from them |
 | `m5:update/0` busy loop in the browser | Example uses `timer:sleep(10)` like upstream examples; document it |
