@@ -1,0 +1,30 @@
+# Tool versions and tasks for atomvm_m5stick. Install mise (https://mise.jdx.dev), then `mise install`.
+[tools]
+erlang = "27.3.4"
+elixir = "1.18.4-otp-27"
+rebar = "3.25.0"
+node = "22"
+pnpm = "10"
+python = "3.12"
+"pipx:esptool" = "latest"
+
+[env]
+# ESP-IDF image used for firmware builds (same as atomvm_m5 CI).
+IDF_IMAGE = "espressif/idf:v5.5.1"
+ATOMVM_VERSION = "v0.7.0-beta.0"
+
+[tasks.setup]
+description = "Install Erlang, Elixir, JS and example dependencies"
+run = "scripts/setup.sh"
+
+[tasks.dev]
+description = "Serve the emulator locally with the example app, rebuild on change"
+run = "scripts/dev.sh"
+
+[tasks.test]
+description = "Run Erlang, JS and end-to-end tests"
+run = "scripts/test.sh"
+
+[tasks.firmware]
+description = "Build the ESP32 runtime image (AtomVM + atomvm_m5) in Docker"
+run = "scripts/firmware.sh"

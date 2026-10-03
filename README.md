@@ -1,0 +1,54 @@
+# atomvm_m5stick
+
+A browser emulator and app installer for the [M5StickC Plus 2](https://docs.m5stack.com/en/core/M5StickC%20PLUS2)
+running [AtomVM](https://github.com/atomvm/AtomVM). Write apps in Elixir, Erlang or Gleam against
+[atomvm_m5](https://github.com/pguyot/atomvm_m5), run them in the browser, then flash them to the
+watch over USB from the same page. Think Bangle.js app loader, for the BEAM.
+
+Status: pre-alpha, milestone 1 (single app: emulate, flash runtime, flash app).
+Milestone 2 is the on-device app loader ("app store"). See `docs/superpowers/specs/`.
+
+## Prerequisites
+
+- [mise](https://mise.jdx.dev) — installs every language tool below.
+- Docker — only for building the ESP32 runtime image (ESP-IDF 5.5 runs in a container).
+- Chrome or Edge — Web Serial is needed to flash from the browser.
+- An M5StickC Plus 2 and a USB-C data cable.
+
+## Setup
+
+```sh
+git clone <this repo> && cd atomvm_m5stick
+mise install          # Erlang 27, Elixir 1.18, rebar3, Node 22, pnpm, esptool
+mise run setup        # deps.get, pnpm install, Playwright browsers
+```
+
+## Daily workflow
+
+```sh
+mise run dev          # emulator at http://localhost:5173 with examples/clock preloaded
+mise run test         # Erlang unit tests, JS renderer tests, Playwright e2e
+mise run firmware     # builds firmware/AtomVM-m5stickc-plus2.img in Docker
+```
+
+First time on a watch: open the emulator page, plug the watch in, click **Install runtime**.
+After that **Install app** writes only the app `.avm` (about a second).
+
+Terminal alternative for the app, from an exatomvm project:
+
+```sh
+mix atomvm.esp32.flash --port /dev/cu.usbserial-*
+```
+
+## Repository layout
+
+| Path | What |
+|------|------|
+| `m5_emu/` | Erlang library that implements the `atomvm_m5` API for the browser VM |
+| `web/` | Emulator page, display renderer, Web Serial installer |
+| `m5_emu_mix/` | `mix m5.emulate` task for Elixir projects |
+| `examples/clock/` | Reference Elixir app |
+| `firmware/` | Partition table and CI workflow for the ESP32 runtime image |
+| `docs/` | Specs and plans |
+
+Tasks are wired up as milestone 1 lands; `mise.toml` is the single source of truth for them.
