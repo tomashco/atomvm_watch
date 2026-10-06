@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- AtomVM version is `v0.7.0-beta.0` everywhere (wasm web, wasm node, firmware, `atomvm` hex package). Single source: `ATOMVM_VERSION` in `mise.toml`.
+- AtomVM version is `v0.7.0-beta.0` everywhere (wasm web, wasm node, firmware, `atomvm` hex package). Single source: `ATOMVM_VERSION` in `devenv.nix`.
 - `atomvm_m5` is pinned to commit `968508c77c90af5a0109bcd7f0e28a5fa8624c02` (M5Unified 0.2.10, M5GFX 0.2.17).
 - `m5_emu` is Erlang only, OTP 27 syntax, compiled with `debug_info`; every public module name and arity matches `atomvm_m5`.
 - `m5_emu.avm` is packed as a library (`packbeam --lib`): it must contain no start module.
@@ -23,7 +23,7 @@
 - Flash offsets: runtime image at `0x1000`, app `.avm` at `0x250000`. Partition table is 8 MB with an `apps` data partition at `0x350000` of size `0x4B0000`.
 - Browser page needs COOP `same-origin` and COEP `require-corp`; the dev server sets headers, GitHub Pages uses `coi-serviceworker`.
 - Unsupported `atomvm_m5` functions return `{error, unsupported}`; never `undef`.
-- Node 22, pnpm 10, Erlang 27.3.4, Elixir 1.18.4-otp-27, rebar3 3.25.0 as pinned in `mise.toml`.
+- Node 22, pnpm 10, Erlang/OTP 27, Elixir 1.18, rebar3 3.x, Python 3.12 from `devenv.nix`, exact versions pinned by `devenv.lock`. Every command runs inside `devenv shell` (or a direnv-activated shell); tool caches live under `.devenv/state`.
 
 ## Review Focus
 
@@ -263,7 +263,7 @@ Expected: PASS, 6 tests.
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-: "${ATOMVM_VERSION:?set by mise}"
+: "${ATOMVM_VERSION:?set by devenv}"
 BASE="https://github.com/atomvm/AtomVM/releases/download/${ATOMVM_VERSION}"
 fetch() { # $1 asset name, $2 destination path
   local name="$1" dest="$2"
@@ -300,12 +300,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 (cd web && pnpm test)
 ```
-`.gitignore`: `web/node_modules/ web/dist/ web/public/atomvm/ vendor/ **/_build/ **/deps/ *.avm !web/e2e/fixtures/*.avm web/test-results/ web/playwright-report/`.
+`.gitignore`: extend the existing file (it already ignores devenv and tooling state) with `web/node_modules/ web/dist/ web/public/atomvm/ vendor/ **/_build/ **/deps/ *.avm !web/e2e/fixtures/*.avm web/test-results/ web/playwright-report/`.
 `chmod +x scripts/*.sh`.
 
-- [ ] **Step 8: Run setup and tests through mise**
+- [ ] **Step 8: Run setup and tests through devenv**
 
-Run: `mise install && mise run setup && mise run test`
+Run: `devenv shell -- setup && devenv shell -- run-tests`
 Expected: wasm files downloaded with "ready" line; vitest PASS.
 
 - [ ] **Step 9: Commit**
@@ -1516,7 +1516,7 @@ If `Module` resolves before `main` has finished (the node build may run `main` a
 
 Run:
 ```bash
-mise run setup && scripts/build-m5-emu.sh && (cd m5_emu/test/smoke_app && rebar3 atomvm packbeam) && node m5_emu/test/node/smoke.mjs
+setup && scripts/build-m5-emu.sh && (cd m5_emu/test/smoke_app && rebar3 atomvm packbeam) && node m5_emu/test/node/smoke.mjs
 ```
 Expected: `SMOKE board stick_cplus2 135x240`, `SMOKE a_pressed true`, a throughput line, `smoke OK`.
 
@@ -2489,7 +2489,7 @@ CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-elixir.csv"
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 ```
-PSRAM stays off in milestone 1 (M5Unified does not need it; AtomVM's own images have it off). The spec's "PSRAM on" line is amended by this task.
+PSRAM stays off in milestone 1 (M5Unified does not need it; AtomVM's own images have it off).
 
 `firmware/m5stickc_plus2/patches/0001-get_board-stick_cplus2.patch` (unified diff against `nifs/atomvm_m5.cc` at the pinned commit; the `#else` branch is the plain ESP32 one):
 ```diff
@@ -2599,7 +2599,7 @@ The board profile's `firmwareManifest` points at `releases/latest/download/manif
 
 - [ ] **Step 5: Build locally and verify on the watch**
 
-Run: `mise run firmware` (first run takes 20 to 40 minutes: IDF component download, M5Unified/M5GFX fetch, two builds).
+Run: `devenv shell -- firmware` where Docker is available, otherwise push and let `.github/workflows/firmware.yml` build it (first run takes 20 to 40 minutes: IDF component download, M5Unified/M5GFX fetch, two builds).
 Expected: `built firmware/out/AtomVM-m5stickc_plus2-dev.img` (about 2.3 MB) and `manifest-m5stickc_plus2.json`.
 
 Flash from the terminal to confirm before trusting the web installer:
@@ -2981,7 +2981,7 @@ git commit -m "feat(mix): mix m5.emulate dev loop"
 
 **Files:**
 - Create: `.github/workflows/ci.yml`, `.github/workflows/pages.yml`, `firmware/m5stickc_plus2/README.md`, `docs/device-checklist.md`
-- Modify: `README.md`, `docs/superpowers/specs/2026-10-03-atomvm-watch-design.md` (two amendments)
+- Modify: `README.md`
 
 - [ ] **Step 1: CI**
 
@@ -2995,12 +2995,13 @@ jobs:
     env: { ATOMVM_VERSION: v0.7.0-beta.0 }
     steps:
       - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
-      - run: mise run setup
-      - run: cd web && pnpm exec playwright install --with-deps chromium
-      - run: mise run test
+      - uses: cachix/install-nix-action@v31
+      - run: nix profile install nixpkgs#devenv
+      - run: devenv shell -- setup
+      - run: devenv shell -- bash -c 'cd web && pnpm exec playwright install --with-deps chromium'
+      - run: devenv shell -- run-tests
 ```
-`mise-action` installs the pinned Erlang, Elixir, Node, pnpm and Python; `mise run test` runs eunit, the node smoke test, vitest, the partition check and Playwright in that order.
+`devenv shell` provides the Erlang, Elixir, Node, pnpm and Python pinned by `devenv.lock`; `run-tests` runs eunit, the node smoke test, vitest, the partition check and Playwright in that order.
 
 - [ ] **Step 2: Pages**
 
@@ -3016,8 +3017,9 @@ jobs:
     env: { ATOMVM_VERSION: v0.7.0-beta.0 }
     steps:
       - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
-      - run: mise run setup && scripts/build-m5-emu.sh && (cd web && pnpm build)
+      - uses: cachix/install-nix-action@v31
+      - run: nix profile install nixpkgs#devenv
+      - run: devenv shell -- bash -c 'setup && scripts/build-m5-emu.sh && cd web && pnpm build'
       - uses: actions/upload-pages-artifact@v3
         with: { path: web/dist }
       - id: deploy
@@ -3035,11 +3037,9 @@ jobs:
 `firmware/m5stickc_plus2/README.md`: what the image contains, the partition table, the upstream `get_board` PR link, measured throughput numbers.
 `README.md`: replace the "Tasks are wired up as milestone 1 lands" line with the Pages URL and a three-step quick start (open the page, drop `clock.avm` from the latest release, Install runtime then Install app).
 
-Spec amendments (section 5 and section 6): the wasm binaries are fetched by `scripts/fetch-atomvm.sh` and verified by sha256 instead of being committed; PSRAM is off in milestone 1.
-
 - [ ] **Step 4: Verify and commit**
 
-Run: `mise run test` locally (everything green), push, confirm `ci` and `pages` workflows pass and the Pages URL loads the emulator with the clock fixture via `?avm=./fixtures/clock.avm`.
+Run: `devenv shell -- run-tests` locally (everything green), push, confirm `ci` and `pages` workflows pass and the Pages URL loads the emulator with the clock fixture via `?avm=./fixtures/clock.avm`.
 
 ```bash
 git add .github README.md docs firmware/m5stickc_plus2/README.md
@@ -3051,5 +3051,5 @@ git commit -m "ci: test workflow, GitHub Pages deploy, device checklist"
 ## Self-review notes
 
 - Spec coverage: §3 deliverables → Tasks 1, 3–9 (m5_emu, web), 10 (firmware), 12 (mix), 11 (example); §4.1 module surface → Tasks 3–5 plus the drift test; §4.3 protocol → Tasks 3 and 7; §5 page files → Tasks 1, 7, 8, 9; §6 → Task 10; §7 → Tasks 11, 12; §8 testing → each task plus Task 11 e2e and the device checklist; §9 error handling → Task 8 (VM exit, bad `.avm`), Task 9 (installer errors), Task 5 (`{error, unsupported}`); §12 risks → Task 6 (shadowing, throughput), Task 11 (fonts vs photos is manual, listed in the checklist), Task 13 (Pages smoke).
-- Deviations from the spec, both recorded in Task 13: wasm binaries fetched not committed; PSRAM off.
+- The spec already reflects the two decisions made while planning: wasm binaries fetched not committed; PSRAM off.
 - Known soft spot: blob URL loading inside the pthread worker (Task 8) has a documented fallback and is exercised by the Task 11 e2e test before anything depends on it.

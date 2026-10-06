@@ -1,0 +1,3 @@
+-module(m5_btn_b).
+-define(BTN, b).
+-include("m5_btn.hrl").

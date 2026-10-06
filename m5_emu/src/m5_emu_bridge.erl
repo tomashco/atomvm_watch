@@ -1,0 +1,2 @@
+-module(m5_emu_bridge).
+-callback run_script(iodata()) -> ok.

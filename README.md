@@ -10,8 +10,11 @@ Milestone 2 is the on-device app loader ("app store"). See `docs/superpowers/spe
 
 ## Prerequisites
 
-- [mise](https://mise.jdx.dev) — installs every language tool below.
-- Docker — only for building the ESP32 runtime image (ESP-IDF 5.5 runs in a container).
+- [Nix](https://nixos.org/download) and [devenv](https://devenv.sh) — provide every language tool
+  below. Tool caches (hex, mix, rebar3, pnpm, Playwright browsers) stay in `.devenv/` inside the repo.
+- Optional: [direnv](https://direnv.net), to enter the environment automatically on `cd`.
+- Docker — only for building the ESP32 runtime image locally (ESP-IDF 5.5 runs in a container);
+  CI builds it otherwise.
 - Chrome or Edge — Web Serial is needed to flash from the browser.
 - An M5StickC Plus 2 and a USB-C data cable.
 
@@ -19,20 +22,38 @@ Milestone 2 is the on-device app loader ("app store"). See `docs/superpowers/spe
 
 ```sh
 git clone <this repo> && cd atomvm_watch
-mise install          # Erlang 27, Elixir 1.18, rebar3, Node 22, pnpm, esptool
-mise run setup        # deps.get, pnpm install, Playwright browsers
+devenv shell          # Erlang 27, Elixir 1.18, rebar3, Node 22, pnpm 10, Python 3.12, esptool
+setup                 # wasm build, atomvmlib.avm, deps.get, pnpm install
 ```
+
+With direnv, run `direnv allow` once instead of `devenv shell`.
+
+Playwright's chromium is not part of `setup`; once, before `run-tests`:
+`devenv shell -- bash -c 'cd web && pnpm exec playwright install chromium'` (it must run inside the devenv shell).
 
 ## Daily workflow
 
+Inside the devenv shell:
+
 ```sh
-mise run dev          # emulator at http://localhost:5173 with examples/clock preloaded
-mise run test         # Erlang unit tests, JS renderer tests, Playwright e2e
-mise run firmware     # builds firmware/m5stickc_plus2/AtomVM-m5stickc-plus2.img in Docker
+dev                   # emulator at http://127.0.0.1:4174 with examples/clock preloaded
+run-tests             # partitions, eunit, mix test, vitest, node smoke, Playwright e2e
+firmware              # builds firmware/out/AtomVM-m5stickc_plus2-dev.img in Docker
 ```
 
-First time on a watch: open the emulator page, plug the watch in, click **Install runtime**.
-After that **Install app** writes only the app `.avm` (about a second).
+Each also works from outside the shell, for example `devenv shell -- run-tests`.
+
+First time on a watch: open the emulator page, plug the watch in, click **Connect**, then
+**Install runtime**. After that, **Connect** and **Install app** write only the app `.avm` (about a second).
+
+**Install runtime** downloads the firmware listed in the page's firmware manifest. The Pages site has
+it only after a firmware release has been mirrored into it. Under `dev` (and `vite`) it is not
+served, so the button fails with "no runtime is published at this address yet". Flash the runtime
+image locally instead (build it with `firmware`, once per watch), then use **Install app** from `dev`:
+
+```sh
+esptool --chip esp32 --port /dev/cu.usbserial-* --baud 921600 write-flash 0x1000 firmware/out/AtomVM-m5stickc_plus2-dev.img
+```
 
 Terminal alternative for the app, from an exatomvm project:
 
@@ -50,6 +71,19 @@ mix atomvm.esp32.flash --port /dev/cu.usbserial-*
 | `examples/clock/` | Reference Elixir app |
 | `boards/` | Board profiles: screen, buttons, device image, firmware manifest (first: `m5stickc_plus2`) |
 | `firmware/` | Partition tables and CI workflow for the ESP32 runtime images |
-| `docs/` | Specs and plans |
+| `docs/` | Specs and plans (`superpowers/`), overview docs (`overview/`) |
 
-Tasks are wired up as milestone 1 lands; `mise.toml` is the single source of truth for them.
+## Quick start
+
+Live demo: <https://tomashco.github.io/atomvm_watch/?avm=./fixtures/clock.avm>
+
+1. Open the demo link in Chrome or Edge. The emulator shows the watch running the clock app.
+   (The plain site URL starts empty: drop an `.avm` built for `atomvm_m5` on it, or pick one.)
+2. The clock is the `clock.avm` served by the site (`fixtures/clock.avm`); to use your own app,
+   drop its `.avm` on the page instead.
+3. Plug in the watch and click **Connect**, then **Install runtime** (once; needs a firmware release
+   mirrored into the site, see above), then **Install app**.
+
+`devenv.nix` is the single source of truth for tools and tasks; `versions.env` pins `ATOMVM_VERSION`
+and the `atomvm_m5` commit. CI (`.github/workflows/ci.yml`) runs `run-tests`; pushes to `main`
+deploy the site (`pages.yml`). Manual device steps: `docs/device-checklist.md`.
