@@ -1,0 +1,31 @@
+:root { color-scheme: dark; --bg: #1b1d21; --panel: #24272c; --fg: #e4e6ea; --muted: #9aa0a8; --accent: #f36b21; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.4 system-ui, sans-serif; }
+header { display: flex; align-items: baseline; gap: 1rem; padding: 0.75rem 1.25rem; border-bottom: 1px solid #333; }
+header h1 { margin: 0; font-size: 1.1rem; }
+#board-name { color: var(--muted); }
+main { display: flex; flex-wrap: wrap; gap: 1.5rem; padding: 1.25rem; align-items: flex-start; }
+
+.device { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+/* The device image is set from profile.deviceImage in main.ts; size and canvas offsets too. */
+.frame { position: relative; background: no-repeat center / 100% 100%; min-width: 135px; min-height: 240px; }
+.frame canvas { position: absolute; image-rendering: pixelated; background: #000; }
+.led { position: absolute; top: 12px; right: 18%; width: 10px; height: 10px; border-radius: 50%; background: #400; }
+.led.on { background: #f00; box-shadow: 0 0 8px #f00; }
+.controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: center; }
+.buttons { display: flex; gap: 0.5rem; }
+.battery { display: flex; align-items: center; gap: 0.4rem; color: var(--muted); }
+
+.side { flex: 1 1 24rem; display: flex; flex-direction: column; gap: 0.75rem; min-width: 18rem; }
+.drop { border: 2px dashed #555; border-radius: 8px; padding: 1.25rem; text-align: center; color: var(--muted); }
+.drop.over { border-color: var(--accent); color: var(--fg); }
+.pick { color: var(--accent); cursor: pointer; text-decoration: underline; }
+.row { display: flex; align-items: center; gap: 0.75rem; min-height: 1.75rem; }
+#app-name { font-family: ui-monospace, monospace; }
+details { background: var(--panel); border-radius: 6px; padding: 0.5rem 0.75rem; }
+details button, details progress { margin: 0.4rem 0.4rem 0 0; }
+button { background: #33373d; color: var(--fg); border: 1px solid #4a4f57; border-radius: 4px; padding: 0.35rem 0.75rem; cursor: pointer; }
+button:active { background: #44494f; }
+button:disabled { opacity: 0.5; cursor: default; }
+.console { height: 14rem; overflow: auto; margin: 0; padding: 0.5rem; background: #111; color: #ddd; font: 12px/1.35 ui-monospace, monospace; border-radius: 6px; white-space: pre-wrap; }
+.console .err { color: #ff8a80; }
