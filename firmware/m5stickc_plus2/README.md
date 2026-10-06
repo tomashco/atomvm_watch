@@ -14,7 +14,9 @@ Upstream PR for the patch: not opened yet (open it against `pguyot/atomvm_m5` an
 
 The full manual device procedure with expected observations is `docs/device-checklist.md`.
 The Pages workflow mirrors the latest release's manifest and image into the site (`firmware/`),
-because release downloads lack CORS headers under COEP.
+because release downloads lack CORS headers under COEP. The mirror refreshes only on the next push
+to `main` or a manual `workflow_dispatch` of the `pages` workflow, so after publishing a new
+firmware release, run `pages` by hand.
 
 ## Build
 

@@ -29,7 +29,7 @@ setup                 # wasm build, atomvmlib.avm, deps.get, pnpm install
 With direnv, run `direnv allow` once instead of `devenv shell`.
 
 Playwright's chromium is not part of `setup`; once, before `run-tests`:
-`(cd web && pnpm exec playwright install chromium)`.
+`devenv shell -- bash -c 'cd web && pnpm exec playwright install chromium'` (it must run inside the devenv shell).
 
 ## Daily workflow
 
@@ -66,11 +66,12 @@ mix atomvm.esp32.flash --port /dev/cu.usbserial-*
 
 ## Quick start
 
-Live demo: <https://tomashco.github.io/atomvm_watch/> (the clock example preloads with
-`?avm=./fixtures/clock.avm`).
+Live demo: <https://tomashco.github.io/atomvm_watch/?avm=./fixtures/clock.avm>
 
-1. Open the page in Chrome or Edge. The emulator shows the watch with the clock app.
-2. Drop a `clock.avm` (or any `.avm` built for `atomvm_m5`) on the page, or pick one with the file picker.
+1. Open the demo link in Chrome or Edge. The emulator shows the watch running the clock app.
+   (The plain site URL starts empty: drop an `.avm` built for `atomvm_m5` on it, or pick one.)
+2. The clock is the `clock.avm` served by the site (`fixtures/clock.avm`); to use your own app,
+   drop its `.avm` on the page instead.
 3. Plug in the watch, click **Install runtime** (once), then **Install app**.
 
 `devenv.nix` is the single source of truth for tools and tasks; `versions.env` pins `ATOMVM_VERSION`

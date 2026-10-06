@@ -48,3 +48,7 @@ jobs:
         run: |
           curl -fsSI "${{ steps.deploy.outputs.page_url }}" | head -1
           curl -fsSI "${{ steps.deploy.outputs.page_url }}atomvm/AtomVM.wasm" | grep -i 'content-type: application/wasm'
+          curl -fsSI "${{ steps.deploy.outputs.page_url }}fixtures/clock.avm" | head -1
+          if [ -f web/dist/firmware/manifest-m5stickc_plus2.json ]; then
+            curl -fsSI "${{ steps.deploy.outputs.page_url }}firmware/manifest-m5stickc_plus2.json" | head -1
+          fi
