@@ -18,6 +18,9 @@ start() ->
     m5_display:set_cursor(0, 0),
     m5_display:println(<<"hello">>),
 
+    %% Shadowing: test/stub_pack has stub m5 and gpio and loads after m5_emu.avm. The probe module
+    %% exists only there, so it proves that pack was loaded; m5 and gpio must still be ours.
+    io:format("SMOKE stub_pack_loaded ~p~n", [stub_pack_probe:loaded()]),
     %% gpio shadowing: our gpio forwards the LED to the page as {led, on}.
     io:format("SMOKE gpio ~p~n", [gpio:digital_write(19, high)]),
 

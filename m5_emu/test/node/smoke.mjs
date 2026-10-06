@@ -1,5 +1,6 @@
 // Runs the smoke app under the real AtomVM node wasm build and asserts on what it prints and on
-// the commands it sends to the page. Load order (rulings X1): m5_emu.avm, atomvmlib.avm, app.
+// the commands it sends to the page. Load order (rulings X1): m5_emu.avm, atomvmlib.avm, then a
+// stub pack with same-named m5/gpio (shadowing check, built by test/stub_pack/build.sh), then app.
 //
 // The node build uses NODERAWFS, so the VM writes stdout straight to fd 1 (fs.writeSync), not
 // through Module.print. To capture it, this file re-runs itself as a child process (SMOKE_CHILD=1)
@@ -29,6 +30,8 @@ async function child() {
     arguments: [
       resolve(root, "web/public/m5_emu.avm"),
       resolve(root, "vendor/atomvm/atomvmlib.avm"),
+      // Same-named stub m5 and gpio, like an app pack bundling atomvm_m5's stubs: must lose.
+      resolve(root, "m5_emu/test/stub_pack/_build/stub_pack.avm"),
       resolve(root, "m5_emu/test/smoke_app/_build/default/lib/smoke_app.avm"),
     ],
   };
@@ -51,21 +54,34 @@ function parent() {
     timeout: TIMEOUT_MS,
     maxBuffer: 64 * 1024 * 1024,
   });
+  if (run.error) {
+    // Spawn failure or timeout (ETIMEDOUT): show what the child printed, then the real error.
+    console.log(run.stdout ?? "");
+    console.error(run.stderr ?? "");
+    throw run.error;
+  }
   const lines = run.stdout.split("\n");
   for (const l of lines) if (!l.startsWith("RECORDED ")) console.log(l);
   if (run.stderr) console.error(run.stderr);
-  if (run.error) throw run.error;
+  // Known-benign stderr lines from the VM. None so far: any stderr output fails the test.
+  const BENIGN_STDERR = [];
+  const unexpected = run.stderr.split("\n").filter((l) => l.trim() !== "" && !BENIGN_STDERR.some((re) => re.test(l)));
   const recordedLine = lines.find((l) => l.startsWith("RECORDED "));
   const recorded = recordedLine ? JSON.parse(recordedLine.slice("RECORDED ".length)) : [];
   const get = (key) => lines.find((l) => l.startsWith(`SMOKE ${key} `))?.slice(`SMOKE ${key} `.length);
 
   assert.equal(run.status, 0, `VM process exited with ${run.status} (signal ${run.signal})`);
+  assert.deepEqual(unexpected, [], "the VM wrote unexpected output to stderr");
   assert.equal(get("gen_server"), "pong", "atomvmlib.avm must provide gen_server");
   assert.equal(get("board"), "stick_cplus2 135x240", "board handshake and m5_emu.avm modules");
   assert.deepEqual(recorded.find((c) => c[0] === "fill_rect"), ["fill_rect", 10, 20, 30, 40, 16711680]);
   assert.ok(recorded.some((c) => c[0] === "print" && c[1] === "hello"), "println reaches the page");
 
-  // (a) gpio shadowing: our gpio shim answers and forwards the LED.
+  // Shadowing: the stub pack loaded (its probe module answered), yet m5 and gpio are ours.
+  assert.equal(get("stub_pack_loaded"), "true", "stub pack must load for the shadowing check to mean anything");
+  // get("board") above is stick_cplus2, not the stub's stub_board.
+
+  // (a) gpio shadowing: our gpio shim answers ("ok", not the stub's "stub") and forwards the LED.
   assert.equal(get("gpio"), "ok");
   assert.ok(recorded.some((c) => c[0] === "led" && c[1] === "on"), "gpio:digital_write(19, high) -> led on");
 
