@@ -43,7 +43,8 @@ Throughput on real hardware (fill in after the first device run): `fill_rect_100
 
 1. `cd examples/clock && mix atomvm.esp32.flash --port /dev/cu.usbserial-*`.
 2. Confirm the three screens cycle on A (clock, buttons, about with `board: stick_cplus2`), B
-   beeps and toggles the red LED, and holding Power blanks the screen until release.
+   beeps and toggles the red LED, and each Power press toggles
+   the display between sleep and wake.
 3. Install the same `clock.avm` through the web page ("Install app") and time it (target: under
    five seconds).
 

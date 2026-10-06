@@ -7,9 +7,16 @@ export function attachCanvas(r: M5Renderer, canvas: HTMLCanvasElement) {
       if (canvas.width !== r.fb.width || canvas.height !== r.fb.height) {
         canvas.width = r.fb.width; canvas.height = r.fb.height; image = ctx.createImageData(r.fb.width, r.fb.height);
       }
+      // A sleeping panel is dark, like the real LCD: paint opaque black and keep the framebuffer,
+      // so wakeup shows the previous contents again.
+      if (r.sleeping) {
+        ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        canvas.style.opacity = "1";
+        return;
+      }
       image.data.set(r.fb.toRGBA());
       ctx.putImageData(image, 0, 0);
-      canvas.style.opacity = r.sleeping ? "0" : String(0.25 + 0.75 * (r.brightness / 255));
+      canvas.style.opacity = String(0.25 + 0.75 * (r.brightness / 255));
     },
   };
 }

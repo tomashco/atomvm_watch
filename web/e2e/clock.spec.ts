@@ -23,6 +23,16 @@ const hasWhitePixel = (page: Page) =>
     return false;
   });
 
+// A digest of the whole canvas, to show that nothing redraws it.
+const canvasDigest = (page: Page) =>
+  page.evaluate(() => {
+    const c = document.getElementById("screen") as HTMLCanvasElement;
+    const d = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
+    let h = 0;
+    for (let i = 0; i < d.length; i++) h = (Math.imul(h, 31) + d[i]) | 0;
+    return h;
+  });
+
 const consoleText = (page: Page) => page.locator("#console").innerText();
 
 // Playwright's plain click sends down and up a few ms apart; the app polls every 10 ms and
@@ -33,21 +43,42 @@ type Ev = { name: string; args: unknown[] };
 const events = (page: Page) =>
   page.evaluate(() => (window as unknown as { m5emu: { events: Ev[] } }).m5emu.events.map((e) => ({ ...e })));
 
+// Records every display command the VM sends into window.__cmds, on every page load. main.ts
+// assigns window.m5emu, so a setter wraps its exec before the VM can call it.
+const recordCommands = () => {
+  type Emu = { exec(c: unknown[]): void };
+  const w = window as unknown as { __cmds: unknown[] };
+  w.__cmds = [];
+  let emu: Emu | undefined;
+  Object.defineProperty(window, "m5emu", {
+    configurable: true,
+    get: () => emu,
+    set: (v: Emu) => {
+      const exec = v.exec.bind(v);
+      v.exec = (cmds) => { w.__cmds.push(...cmds); exec(cmds); };
+      emu = v;
+    },
+  });
+};
+const commands = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __cmds: unknown[][] }).__cmds.map((c) => [...c]));
+
+// Commands only the clock app sends: its screens' backgrounds and text (not black: m5:begin_/1
+// clears the screen to black for any app).
+const CLOCK_BG = [0x102040, 0x203010];
+const isClockCommand = (c: unknown[]) =>
+  c[0] === "draw_center_string" ||
+  (c[0] === "fill_screen" && CLOCK_BG.includes(c[1] as number)) ||
+  (c[0] === "print" && /^(A: next|Buttons|atomvm_watch|board: )/.test(String(c[1])));
+
 test("clock app boots, reacts to buttons, and can be replaced", async ({ page }) => {
+  await page.addInitScript(recordCommands);
   await page.goto("/?avm=fixtures/clock.avm");
 
   // Boot: clock screen, black background (opaque) with white digits.
   await expect.poll(() => pixel(page, 5, 5), { timeout: 30_000 }).toBe("0,0,0,255");
   await expect.poll(() => hasWhitePixel(page), { timeout: 10_000 }).toBe(true);
   expect(await consoleText(page)).not.toMatch(/undef|error/i);
-
-  // Record every display command from here on, to read the about screen's text.
-  await page.evaluate(() => {
-    const w = window as unknown as { m5emu: { exec(c: unknown[]): void }; __cmds: unknown[] };
-    w.__cmds = [];
-    const exec = w.m5emu.exec;
-    w.m5emu.exec = (cmds) => { w.__cmds.push(...cmds); exec(cmds); };
-  });
 
   // A -> "buttons" screen, background 0x102040.
   await press(page, "a");
@@ -67,8 +98,18 @@ test("clock app boots, reacts to buttons, and can be replaced", async ({ page })
   // m5_emu's m5 (the app pack bundles atomvm_m5's stub m5, which must be shadowed).
   await press(page, "a");
   await expect.poll(() => pixel(page, 5, 5), { timeout: 10_000 }).toBe("32,48,16,255");
-  await expect.poll(() => page.evaluate(() => JSON.stringify((window as unknown as { __cmds: unknown[] }).__cmds)))
-    .toContain("board: stick_cplus2");
+  await expect.poll(async () => JSON.stringify(await commands(page))).toContain("board: stick_cplus2");
+
+  // Power toggles the display: the first press puts it to sleep (opaque black, no text), the next
+  // wakes it and the about screen comes back.
+  await press(page, "pwr");
+  await expect.poll(() => pixel(page, 5, 5), { timeout: 10_000 }).toBe("0,0,0,255");
+  expect(await hasWhitePixel(page)).toBe(false);
+  await press(page, "pwr");
+  await expect.poll(() => pixel(page, 5, 5), { timeout: 10_000 }).toBe("32,48,16,255");
+  expect(await hasWhitePixel(page)).toBe(true);
+
+  expect(await consoleText(page)).not.toMatch(/undef|error/i);
 
   // Replace: choosing another .avm saves it and reloads the page, which boots the new app.
   await page.setInputFiles("#file", SMOKE_AVM);
@@ -77,4 +118,12 @@ test("clock app boots, reacts to buttons, and can be replaced", async ({ page })
   await expect.poll(() => consoleText(page), { timeout: 30_000 }).toContain("SMOKE board stick_cplus2 135x240");
   // smoke_app fills a red rect at (10,20) 30x40, rotation 0.
   await expect.poll(() => pixel(page, 20, 40), { timeout: 10_000 }).toBe("255,0,0,255");
+
+  // Only the new app runs: for longer than the clock's 1 s redraw, the canvas stays the same and
+  // no clock drawing command arrives on this page.
+  const before = await canvasDigest(page);
+  await page.waitForTimeout(2_500);
+  expect(await canvasDigest(page)).toBe(before);
+  expect(await pixel(page, 20, 40)).toBe("255,0,0,255");
+  expect((await commands(page)).filter(isClockCommand)).toEqual([]);
 });

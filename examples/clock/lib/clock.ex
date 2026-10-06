@@ -7,7 +7,7 @@ defmodule Clock do
     :m5.begin_([])
     :m5_display.set_rotation(1)
     :gpio.set_pin_mode(@led, :output)
-    loop(%{screen: 0, led: false, last_draw: 0, boot: :erlang.monotonic_time(:second)})
+    loop(%{screen: 0, led: false, asleep: false, last_draw: 0})
   end
 
   defp loop(state) do
@@ -35,23 +35,26 @@ defmodule Clock do
     end
   end
 
+  # Power toggles the display: a press puts it to sleep, the next press wakes it.
   defp handle_pwr(state) do
     cond do
-      :m5_btn_pwr.was_pressed() ->
-        :m5_display.sleep()
+      not :m5_btn_pwr.was_pressed() ->
         state
 
-      :m5_btn_pwr.was_released() ->
+      state.asleep ->
         :m5_display.wakeup()
-        %{state | last_draw: 0}
+        %{state | asleep: false, last_draw: 0}
 
       true ->
-        state
+        :m5_display.sleep()
+        %{state | asleep: true}
     end
   end
 
+  defp maybe_draw(%{asleep: true} = state), do: state
+
   defp maybe_draw(%{last_draw: last} = state) do
-    now = :erlang.monotonic_time(:second)
+    now = :erlang.system_time(:second)
 
     if now != last do
       draw(Enum.at(@screens, state.screen), state, now)
@@ -61,8 +64,9 @@ defmodule Clock do
     end
   end
 
-  defp draw(:clock, state, now) do
-    secs = now - state.boot
+  # UTC time of day. There is no RTC on the watch: until the time is set it counts from the epoch.
+  defp draw(:clock, _state, now) do
+    secs = rem(now, 86_400)
 
     text =
       :io_lib.format("~2..0B:~2..0B:~2..0B", [div(secs, 3600), rem(div(secs, 60), 60), rem(secs, 60)])
