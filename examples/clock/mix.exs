@@ -24,7 +24,8 @@ defmodule Clock.MixProject do
       {:atomvm_m5,
        git: "https://github.com/pguyot/atomvm_m5.git",
        ref: "968508c77c90af5a0109bcd7f0e28a5fa8624c02",
-       manager: :rebar3}
+       manager: :rebar3},
+      {:m5_emu_mix, path: "../../m5_emu_mix", only: :dev, runtime: false}
     ]
   end
 end
