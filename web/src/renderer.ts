@@ -32,32 +32,50 @@ export class M5Renderer {
   private drawRect(x: number, y: number, w: number, h: number, c: number) {
     this.fillRect(x, y, w, 1, c); this.fillRect(x, y + h - 1, w, 1, c); this.fillRect(x, y, 1, h, c); this.fillRect(x + w - 1, y, 1, h, c);
   }
+  // Liang-Barsky clip to the logical screen; null when nothing is visible. Endpoints are rounded to pixels.
+  private clipLine(x0: number, y0: number, x1: number, y1: number): [number, number, number, number] | null {
+    const xmax = this.width() - 1, ymax = this.height() - 1;
+    const dx = x1 - x0, dy = y1 - y0;
+    let t0 = 0, t1 = 1;
+    for (const [p, q] of [[-dx, x0], [dx, xmax - x0], [-dy, y0], [dy, ymax - y0]]) {
+      if (p === 0) { if (q < 0) return null; continue; }
+      const t = q / p;
+      if (p < 0) { if (t > t1) return null; if (t > t0) t0 = t; } else { if (t < t0) return null; if (t < t1) t1 = t; }
+    }
+    return [Math.round(x0 + t0 * dx), Math.round(y0 + t0 * dy), Math.round(x0 + t1 * dx), Math.round(y0 + t1 * dy)];
+  }
   private line(x0: number, y0: number, x1: number, y1: number, c: number) { // Bresenham
+    if (![x0, y0, x1, y1].every(Number.isFinite)) return; // short command: never loop on NaN
+    if (Math.max(Math.abs(x0), Math.abs(y0), Math.abs(x1), Math.abs(y1)) > 8192) {
+      const k = this.clipLine(x0, y0, x1, y1); if (!k) return; [x0, y0, x1, y1] = k;
+    }
     let dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx + dy;
     for (;;) { this.plot(x0, y0, c); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } }
   }
   private circle(cx: number, cy: number, r: number, c: number, fill: boolean) {
     if (r < 0) return;
-    for (let y = -r; y <= r; y++) {
+    const ylo = Math.max(-r, -cy), yhi = Math.min(r, this.height() - 1 - cy);
+    for (let y = ylo; y <= yhi; y++) {
       const half = Math.round(Math.sqrt(r * r - y * y));
       if (fill) this.fillRect(cx - half, cy + y, 2 * half + 1, 1, c);
       else { this.plot(cx - half, cy + y, c); this.plot(cx + half, cy + y, c); }
     }
-    if (!fill) for (let x = -r; x <= r; x++) { const half = Math.round(Math.sqrt(r * r - x * x)); this.plot(cx + x, cy - half, c); this.plot(cx + x, cy + half, c); }
+    if (!fill) for (let x = Math.max(-r, -cx); x <= Math.min(r, this.width() - 1 - cx); x++) { const half = Math.round(Math.sqrt(r * r - x * x)); this.plot(cx + x, cy - half, c); this.plot(cx + x, cy + half, c); }
   }
   private ellipse(cx: number, cy: number, rx: number, ry: number, c: number, fill: boolean) {
     if (rx < 0 || ry < 0) return;
     if (ry === 0) { this.fillRect(cx - rx, cy, 2 * rx + 1, 1, c); return; }
-    for (let y = -ry; y <= ry; y++) {
+    for (let y = Math.max(-ry, -cy); y <= Math.min(ry, this.height() - 1 - cy); y++) {
       const half = Math.round(rx * Math.sqrt(1 - (y * y) / (ry * ry)));
       if (fill) this.fillRect(cx - half, cy + y, 2 * half + 1, 1, c); else { this.plot(cx - half, cy + y, c); this.plot(cx + half, cy + y, c); }
     }
-    if (!fill && rx > 0) for (let x = -rx; x <= rx; x++) {
+    if (!fill && rx > 0) for (let x = Math.max(-rx, -cx); x <= Math.min(rx, this.width() - 1 - cx); x++) {
       const half = Math.round(ry * Math.sqrt(1 - (x * x) / (rx * rx))); this.plot(cx + x, cy - half, c); this.plot(cx + x, cy + half, c);
     }
   }
   private roundRect(x: number, y: number, w: number, h: number, r: number, c: number, fill: boolean) {
-    r = Math.max(0, Math.min(r, Math.floor(w / 2), Math.floor(h / 2)));
+    const cap = 4 * Math.ceil(Math.hypot(this.width(), this.height()));
+    r = Math.max(0, Math.min(r, Math.floor(w / 2), Math.floor(h / 2), cap));
     if (fill) {
       this.fillRect(x + r, y, w - 2 * r, h, c);
       for (let yy = 0; yy < r; yy++) {
@@ -78,7 +96,7 @@ export class M5Renderer {
   }
   private triangle(x0: number, y0: number, x1: number, y1: number, x2: number, y2: number, c: number, fill: boolean) {
     if (!fill) { this.line(x0, y0, x1, y1, c); this.line(x1, y1, x2, y2, c); this.line(x2, y2, x0, y0, c); return; }
-    const ys = Math.min(y0, y1, y2), ye = Math.max(y0, y1, y2);
+    const ys = Math.max(0, Math.min(y0, y1, y2)), ye = Math.min(this.height() - 1, Math.max(y0, y1, y2));
     for (let y = ys; y <= ye; y++) {
       const xs: number[] = [];
       for (const [ax, ay, bx, by] of [[x0, y0, x1, y1], [x1, y1, x2, y2], [x2, y2, x0, y0]]) {
@@ -118,8 +136,36 @@ export class M5Renderer {
     }
   }
 
+  // M5GFX takes int32 coordinates: truncate numeric args once. Returns null (and warns once) for a
+  // malformed command: non-finite numbers, or a string/number in the wrong place.
+  private normalize(cmd: Command): Command | null {
+    const [name, ...a] = cmd;
+    if (name === "tone" || name === "stop_tone" || name === "led") return cmd;
+    if (name === "set_text_size") {
+      const f = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(1, Math.round(v)) : 1);
+      return [name, f(a[0]), f(a[1])];
+    }
+    const strFirst = name === "print" || name === "draw_string" || name === "draw_center_string" || name === "draw_right_string";
+    const out: (number | string)[] = [];
+    for (let i = 0; i < a.length; i++) {
+      const v = a[i];
+      if (strFirst && i === 0) { if (typeof v !== "string") return this.bad(name); out.push(v); continue; }
+      if (typeof v !== "number" || !Number.isFinite(v)) return this.bad(name);
+      out.push(Math.trunc(v));
+    }
+    return [name, ...out];
+  }
+  private bad(name: string): null {
+    const key = "bad:" + name;
+    if (!this.warned.has(key)) { this.warned.add(key); console.warn(`m5emu: skipped ${name} with invalid arguments`); }
+    return null;
+  }
+
   exec(cmds: Command[]) {
-    for (const [name, ...a] of cmds) {
+    for (const cmd of cmds) {
+      const norm = this.normalize(cmd);
+      if (!norm) continue;
+      const [name, ...a] = norm;
       const n = a as number[];
       switch (name) {
         case "fill_screen": this.fillRect(0, 0, this.width(), this.height(), n[0]); break;
@@ -143,7 +189,7 @@ export class M5Renderer {
         case "print": this.print(String(a[0])); break;
         case "println": this.print("\n"); break;
         case "set_cursor": this.cursor = { x: n[0], y: n[1] }; break;
-        case "set_text_size": this.textSize = { x: Math.max(1, Math.round(n[0])), y: Math.max(1, Math.round(n[1])) }; break;
+        case "set_text_size": this.textSize = { x: n[0], y: n[1] }; break;
         case "set_color": this.color = n[0]; break;
         case "set_base_color": this.baseColor = n[0]; break;
         case "set_rotation": this.rotation = n[0] & 3; break;

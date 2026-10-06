@@ -109,4 +109,40 @@ describe("M5Renderer", () => {
             ["set_cursor", 10, 30], ["set_text_size", 2, 2], ["print", "wrap this long line of text past the edge"]]);
     expectGolden(r, "rotation-1");
   });
+  it("float coordinates are truncated, and terminate", () => {
+    const r = mk();
+    r.exec([["draw_line", 0.5, 0.5, 10.7, 0.5, 0xff0000], ["fill_rect", 20.9, 20.9, 3.9, 3.9, 0x00ff00],
+            ["draw_triangle", 50.5, 50.5, 60.5, 50.5, 55.5, 60.5, 0x0000ff]]);
+    for (let x = 0; x <= 10; x++) expect(r.fb.getPixel(x, 0)).toBe(0xff0000);
+    expect(r.fb.getPixel(11, 0)).toBe(0);
+    expect(r.fb.getPixel(20, 20)).toBe(0x00ff00); expect(r.fb.getPixel(22, 22)).toBe(0x00ff00);
+    expect(r.fb.getPixel(23, 23)).toBe(0);
+    expect(r.fb.getPixel(50, 50)).toBe(0x0000ff); expect(r.fb.getPixel(60, 50)).toBe(0x0000ff);
+  });
+  it("huge coordinates are clipped, not iterated", () => {
+    const r = mk(); const t = performance.now();
+    r.exec([["draw_line", -1e9, -1e9, 1e9, 1e9, 0xffffff], ["fill_circle", 0, 0, 1e9, 0x112233],
+            ["draw_circle", 1e9, 1e9, 1e9, 0x112233], ["draw_ellipse", 0, 0, 1e9, 1e9, 0x1], ["fill_round_rect", -1e9, -1e9, 2e9, 2e9, 1e9, 0x445566],
+            ["fill_triangle", -1e9, -1e9, 1e9, 0, 0, 1e9, 0x778899], ["draw_triangle", -1e9, -1e9, 1e9, 0, 0, 1e9, 1]]);
+    expect(performance.now() - t).toBeLessThan(1000);
+    const r2 = mk(); const t2 = performance.now();
+    r2.exec([["draw_line", -1e9, -1e9, 1e9, 1e9, 0xffffff]]);
+    expect(performance.now() - t2).toBeLessThan(100);
+    for (let i = 0; i < 135; i++) expect(r2.fb.getPixel(i, i)).toBe(0xffffff);
+    expect(r2.fb.getPixel(1, 0)).toBe(0);
+  });
+  it("NaN and malformed args are skipped without throwing", () => {
+    const r = mk();
+    expect(() => r.exec([["draw_line", NaN, 0, 5, 5, 1], ["fill_rect", Infinity, 0, 5, 5, 1], ["draw_line", 0, 0, 5],
+                         ["draw_string", 5 as any, 0, 0], ["fill_rect", "a" as any, 0, 5, 5, 1], ["set_text_size", NaN, NaN],
+                         ["draw_pixel", 1, 1, 0xffffff]])).not.toThrow();
+    expect(r.textSize).toEqual({ x: 1, y: 1 });
+    expect(r.fb.getPixel(1, 1)).toBe(0xffffff);
+    expect(r.fb.getPixel(0, 0)).toBe(0);
+  });
+  it("rounds fractional text sizes like the Erlang cursor", () => {
+    const r = mk();
+    r.exec([["set_text_size", 1.5, 1.5], ["set_cursor", 0, 0], ["print", "ab"], ["println"]]);
+    expect(r.cursor).toEqual({ x: 0, y: 16 });
+  });
 });

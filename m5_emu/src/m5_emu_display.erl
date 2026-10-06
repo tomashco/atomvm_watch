@@ -75,8 +75,13 @@ handle_call({print, Bin}, _From, S) ->
     {reply, byte_size(Bin), S1#st{cursor = advance(Bin, S1)}};
 handle_call(println, _From, S) ->
     S1 = emit({println}, S),
-    {_, SY} = S#st.text_size, {_, Y} = S#st.cursor,
+    {_, SY} = px_size(S#st.text_size), {_, Y} = S#st.cursor,
     {reply, 1, S1#st{cursor = {0, Y + ?CELL_H * SY}}}.
+
+%% The renderer rounds text sizes to whole pixels (min 1); the cursor must use the same size.
+px_size({SX, SY}) -> {px_size1(SX), px_size1(SY)}.
+px_size1(V) when is_number(V) -> max(1, round(V));
+px_size1(_) -> 1.
 
 handle_cast(_, S) -> {noreply, S}.
 
@@ -92,7 +97,8 @@ width(#st{rotation = R, native_w = W, native_h = H}) -> case R band 1 of 0 -> W;
 height(#st{rotation = R, native_w = W, native_h = H}) -> case R band 1 of 0 -> H; 1 -> W end.
 
 %% Cursor advance mirrors M5GFX: wrap on X at the right edge, newline resets X. No Y wrap or scroll.
-advance(Bin, #st{cursor = {X0, Y0}, text_size = {SX, SY}} = S) ->
+advance(Bin, #st{cursor = {X0, Y0}, text_size = TS} = S) ->
+    {SX, SY} = px_size(TS),
     CW = ?CELL_W * SX, CH = ?CELL_H * SY, W = width(S),
     lists:foldl(fun($\n, {_X, Y}) -> {0, Y + CH};
                    ($\r, {_X, Y}) -> {0, Y};

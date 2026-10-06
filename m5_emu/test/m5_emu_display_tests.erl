@@ -44,6 +44,12 @@ display_test_() -> {foreach, local, fun setup/0, fun cleanup/1, [
         ?assertEqual({10 + 5 * 12, 20}, m5_display:get_cursor()),
         ?assertEqual(1, m5_display:println()),
         ?assertEqual({0, 36}, m5_display:get_cursor()) end} end,
+    fun(_) -> {"cursor uses the renderer's rounded text size", fun() ->
+        ok = m5_display:set_cursor(0, 0), ok = m5_display:set_text_size(1.5), _ = script(),
+        _ = m5_display:print(<<"ab">>), _ = script(),
+        ?assertEqual({24, 0}, m5_display:get_cursor()),   %% size 1.5 rounds to 2: 2 * 12
+        ?assertEqual(1, m5_display:println()),
+        ?assertEqual({0, 16}, m5_display:get_cursor()) end} end,
     fun(_) -> {"print wraps at the right edge", fun() ->
         %% width 135, size 1: 22 chars fit (132 px); the 23rd wraps to the next line.
         ok = m5_display:set_cursor(0, 0), _ = script(),
