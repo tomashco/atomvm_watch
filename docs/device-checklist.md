@@ -21,8 +21,9 @@ Needs the watch on USB and a Chrome or Edge browser. Record results in
 
 ## Web installer
 
-- [ ] Open `https://tomashco.github.io/atomvm_watch/`, the emulator runs the clock.
-- [ ] Click **Install runtime** then, on the same serial connection, **Install app**; progress and
+- [ ] Open `https://tomashco.github.io/atomvm_watch/?avm=./fixtures/clock.avm` (the plain URL starts empty), the emulator runs the clock.
+- [ ] Click **Connect**, then **Install runtime** (needs a mirrored firmware release on the site) and,
+      on the same serial connection, **Install app**; progress and
       the serial log appear in the console pane and the watch boots the clock.
-- [ ] **Install app** alone (runtime already present) finishes in under five seconds. Time: ____ s.
+- [ ] **Connect** then **Install app** alone (runtime already present) finishes in under five seconds. Time: ____ s.
 - [ ] Unplugging mid-install shows an error in the console pane and leaves the page usable.

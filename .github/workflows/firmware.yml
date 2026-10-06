@@ -5,7 +5,7 @@ on:
   pull_request:
     paths: ["firmware/**", "versions.env", ".github/workflows/firmware.yml"]
   workflow_dispatch:
-permissions: { contents: write }
+permissions: { contents: read }
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,6 +27,13 @@ jobs:
           WORK=/tmp/atomvm firmware/build.sh m5stickc_plus2 "$ATOMVM_VERSION" "$ATOMVM_M5_COMMIT" out
       - uses: actions/upload-artifact@v4
         with: { name: firmware-m5stickc_plus2, path: out/* }
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/firmware-m5stickc_plus2-v')
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: firmware-m5stickc_plus2, path: out }
       - uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/firmware-m5stickc_plus2-v')
         with: { files: out/* }

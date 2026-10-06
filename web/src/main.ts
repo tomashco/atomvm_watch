@@ -62,6 +62,8 @@ renderer.onEvent = (name, a) => {
 };
 
 let vm: VmHandle | undefined;
+// True from the moment a VM start begins until the page reloads: a second load during startup must take the replace path.
+let starting = false;
 let current: LoadedApp | undefined;
 let installer: { appChanged(): void } | undefined;
 // Module.cast before AtomVM's main has created the global context dereferences NULL, so inputs
@@ -94,13 +96,14 @@ const onStderr = (line: string) => {
 };
 
 async function run(app: LoadedApp) {
-  if (vm) {
+  if (vm || starting) {
     // A wasm pthread module can't be torn down cleanly: save the new app, then reload without
     // ?avm= so the page boots the saved app from IndexedDB.
     await saveLastApp(app);
     location.replace(`${location.pathname}?board=${encodeURIComponent(profile.id)}`);
     return;
   }
+  starting = true;
   current = app;
   installer?.appChanged();
   $("app-name").textContent = app.name;
