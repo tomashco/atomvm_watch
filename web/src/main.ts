@@ -58,6 +58,7 @@ renderer.onEvent = (name, a) => {
 
 let vm: VmHandle | undefined;
 let current: LoadedApp | undefined;
+let installer: { appChanged(): void } | undefined;
 // Module.cast before AtomVM's main has created the global context dereferences NULL, so inputs
 // are only forwarded once the app has asked for the board (m5:begin_/1 -> boardReady()).
 let boardRequested = false;
@@ -95,6 +96,7 @@ async function run(app: LoadedApp) {
     return;
   }
   current = app;
+  installer?.appChanged();
   $("app-name").textContent = app.name;
   con.clear();
   await saveLastApp(app);
@@ -118,7 +120,7 @@ drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
 drop.ondragleave = () => drop.classList.remove("over");
 drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); runFile(e.dataTransfer?.files[0]); };
 
-setupInstaller(profile, {
+installer = setupInstaller(profile, {
   connect: $("connect"), runtime: $("install-runtime"), app: $("install-app"),
   chip: $("chip"), progress: $<HTMLProgressElement>("progress"), section: $("install"),
 }, () => current, con);
