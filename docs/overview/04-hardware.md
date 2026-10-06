@@ -68,7 +68,7 @@ board library other than `atomvm_m5`. That is out of scope and not designed for 
   ],
   "peripherals": { "speaker": true, "led": true, "battery": true },
   "chip": "ESP32",
-  "firmwareManifest": "https://github.com/tomashco/atomvm_watch/releases/latest/download/manifest-m5stickc_plus2.json",
+  "firmwareManifest": "firmware/manifest-m5stickc_plus2.json",
   "appOffset": 2424832,
   "deviceImage": "device.svg"
 }
