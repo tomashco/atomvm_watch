@@ -10,7 +10,17 @@ in
   packages = [
     beam.rebar3
     pkgs.esptool
+    # build-atomvmlib.sh (AtomVM libs only, no native VM)
+    pkgs.cmake
+    pkgs.gperf
+    pkgs.ninja
+    pkgs.curl
+    pkgs.zlib
   ];
+
+  # Pinned versions (ATOMVM_VERSION, ATOMVM_M5_COMMIT) live in versions.env, the single source.
+  dotenv.enable = true;
+  dotenv.filename = "versions.env";
 
   languages.erlang = {
     enable = true;
@@ -34,7 +44,6 @@ in
   };
 
   env = {
-    ATOMVM_VERSION = "v0.7.0-beta.0";
     # ESP-IDF image used for firmware builds (same as atomvm_m5 CI).
     IDF_IMAGE = "espressif/idf:v5.5.1";
 

@@ -1,0 +1,23 @@
+{
+  "name": "atomvm-watch-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync-boards": "rm -rf public/boards && mkdir -p public && cp -R ../boards public/boards",
+    "predev": "pnpm run sync-boards",
+    "prebuild": "pnpm run sync-boards",
+    "pretest": "pnpm run sync-boards",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "ajv": "^8.20.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
+  }
+}

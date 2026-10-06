@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="400" viewBox="0 0 200 400">
+  <defs>
+    <mask id="window">
+      <rect width="200" height="400" fill="#fff"/>
+      <rect x="32" y="60" width="135" height="240" fill="#000"/>
+    </mask>
+  </defs>
+  <rect width="200" height="400" rx="24" fill="#f36b21" mask="url(#window)"/>
+  <circle id="btn-a" cx="67" cy="300" r="14" fill="#fff"/>
+  <circle id="btn-b" cx="150" cy="160" r="10" fill="#fff"/>
+  <circle id="btn-pwr" cx="-15" cy="160" r="10" fill="#fff"/>
+</svg>

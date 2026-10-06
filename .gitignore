@@ -6,3 +6,17 @@ devenv.local.nix
 # local agent and tooling state
 .claude/worktrees/
 .superpowers/
+
+# build outputs and downloaded artifacts
+web/node_modules/
+web/dist/
+web/public/atomvm/
+web/public/boards/
+vendor/
+m5_emu_mix/priv/web/
+**/_build/
+**/deps/
+*.avm
+!web/e2e/fixtures/*.avm
+web/test-results/
+web/playwright-report/

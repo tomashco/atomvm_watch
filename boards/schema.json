@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "atomvm_watch board profile",
+  "type": "object",
+  "required": ["id", "name", "boardAtom", "screen", "buttons", "peripherals", "chip", "firmwareManifest", "appOffset", "deviceImage"],
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "boardAtom": { "type": "string" },
+    "screen": {
+      "type": "object",
+      "required": ["width", "height", "scale"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "scale": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "buttons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "key", "x", "y"],
+        "properties": {
+          "id": { "enum": ["a", "b", "c", "pwr", "ext"] },
+          "label": { "type": "string" },
+          "key": { "type": "string" },
+          "x": { "type": "number" },
+          "y": { "type": "number" }
+        }
+      }
+    },
+    "peripherals": {
+      "type": "object",
+      "required": ["speaker", "led", "battery"],
+      "properties": {
+        "speaker": { "type": "boolean" },
+        "led": { "type": "boolean" },
+        "battery": { "type": "boolean" }
+      }
+    },
+    "chip": { "type": "string" },
+    "firmwareManifest": { "type": "string" },
+    "appOffset": { "type": "integer", "minimum": 0 },
+    "deviceImage": { "type": "string" }
+  }
+}
