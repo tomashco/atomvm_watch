@@ -6,7 +6,7 @@ describe("parseBoardProfile", () => {
   it("accepts the m5stickc_plus2 profile", () => {
     const p = parseBoardProfile(raw);
     expect(p.boardAtom).toBe("stick_cplus2");
-    expect(p.screen).toEqual({ width: 135, height: 240, scale: 1.5 });
+    expect(p.screen).toEqual({ width: 135, height: 240, scale: 1.5, x: 20, y: 40 });
     expect(p.appOffset).toBe(0x250000);
     expect(p.buttons.map(b => b.id)).toEqual(["a", "b", "pwr"]);
     expect(p.firmwareManifest).toBe("firmware/manifest-m5stickc_plus2.json");

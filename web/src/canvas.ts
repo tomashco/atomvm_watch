@@ -11,12 +11,14 @@ export function attachCanvas(r: M5Renderer, canvas: HTMLCanvasElement) {
       // so wakeup shows the previous contents again.
       if (r.sleeping) {
         ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        canvas.style.opacity = "1";
+        canvas.style.filter = "";
         return;
       }
       image.data.set(r.fb.toRGBA());
       ctx.putImageData(image, 0, 0);
-      canvas.style.opacity = String(0.25 + 0.75 * (r.brightness / 255));
+      // Backlight level dims the pixels toward black; the panel itself stays opaque, so nothing
+      // behind the canvas (the device image) ever shows through.
+      canvas.style.filter = `brightness(${0.25 + 0.75 * (r.brightness / 255)})`;
     },
   };
 }

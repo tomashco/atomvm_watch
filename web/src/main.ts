@@ -11,9 +11,6 @@ import { makeConsole } from "./console";
 import { setupInstaller } from "./installer";
 
 const BASE = import.meta.env.BASE_URL;
-// Top-left of the screen window in the device image, in image pixels. board.json has no screen
-// origin yet; this matches boards/m5stickc_plus2/device.svg.
-const SCREEN_ORIGIN = { x: 20, y: 40 };
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const con = makeConsole($("console"));
@@ -66,8 +63,8 @@ img.src = deviceUrl;
 const renderer = new M5Renderer(profile.screen.width, profile.screen.height);
 const canvas = $<HTMLCanvasElement>("screen");
 canvas.width = profile.screen.width; canvas.height = profile.screen.height;
-canvas.style.left = `${SCREEN_ORIGIN.x * scale}px`;
-canvas.style.top = `${SCREEN_ORIGIN.y * scale}px`;
+canvas.style.left = `${profile.screen.x * scale}px`;
+canvas.style.top = `${profile.screen.y * scale}px`;
 canvas.style.width = `${profile.screen.width * scale}px`;
 canvas.style.height = `${profile.screen.height * scale}px`;
 const view = attachCanvas(renderer, canvas);

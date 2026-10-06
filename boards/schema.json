@@ -9,11 +9,13 @@
     "boardAtom": { "type": "string" },
     "screen": {
       "type": "object",
-      "required": ["width", "height", "scale"],
+      "required": ["width", "height", "scale", "x", "y"],
       "properties": {
         "width": { "type": "integer", "minimum": 1 },
         "height": { "type": "integer", "minimum": 1 },
-        "scale": { "type": "number", "exclusiveMinimum": 0 }
+        "scale": { "type": "number", "exclusiveMinimum": 0 },
+        "x": { "type": "number", "description": "Left edge of the screen window in the device image, in image pixels" },
+        "y": { "type": "number", "description": "Top edge of the screen window in the device image, in image pixels" }
       }
     },
     "buttons": {

@@ -2,7 +2,7 @@
   "id": "m5stickc_plus2",
   "name": "M5StickC Plus 2",
   "boardAtom": "stick_cplus2",
-  "screen": { "width": 135, "height": 240, "scale": 1.5 },
+  "screen": { "width": 135, "height": 240, "scale": 1.5, "x": 20, "y": 40 },
   "buttons": [
     { "id": "a",   "label": "A",     "key": "a", "x": 87,  "y": 305 },
     { "id": "b",   "label": "B",     "key": "b", "x": 171, "y": 140 },

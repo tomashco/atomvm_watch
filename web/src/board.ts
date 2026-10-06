@@ -3,7 +3,7 @@ import schema from "../../boards/schema.json";
 export interface BoardButton { id: "a" | "b" | "c" | "pwr" | "ext"; label: string; key: string; x: number; y: number }
 export interface BoardProfile {
   id: string; name: string; boardAtom: string;
-  screen: { width: number; height: number; scale: number };
+  screen: { width: number; height: number; scale: number; x: number; y: number };
   buttons: BoardButton[];
   peripherals: { speaker: boolean; led: boolean; battery: boolean };
   chip: string; firmwareManifest: string; appOffset: number; deviceImage: string;
