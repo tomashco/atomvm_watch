@@ -17,7 +17,7 @@
          set_text_size/1, set_text_size/2, font_height/0, font_width/0,
          draw_string/3, draw_center_string/3, draw_right_string/3, print/1, println/1, println/0]).
 
--define(UNSUPPORTED, {error, unsupported}).
+-define(UNSUPPORTED, m5_emu_unsupported:call(?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY)).
 color() -> m5_emu_display:get(color).
 c(Color) -> m5_emu_cmd:to_rgb888(Color).
 

@@ -3,6 +3,7 @@
 -export([start_link/1, configure/2, cmd/1, start_write/0, end_write/0, get/1, set/2, reset/0,
          print/1, println/0]).
 -export([chars/1]).
+-export([tone/2, stop_tone/0, is_playing/0, set_volume/1, get_volume/0, led/1, led/0]).
 -export([init/1, handle_call/3, handle_cast/2]).
 
 -define(CELL_W, 6).
@@ -10,7 +11,8 @@
 
 -record(st, {bridge, native_w = 135, native_h = 240, rotation = 0, cursor = {0, 0},
              text_size = {1, 1}, color = 16#FFFFFF, base_color = 0, sleeping = false,
-             brightness = 128, batch = none, depth = 0}).  % batch :: none | [command()] (reversed)
+             brightness = 128, batch = none, depth = 0,
+             tone_until = undefined, volume = 64, led = false}).  % batch :: none | [command()] (reversed)
 
 start_link(Bridge) -> gen_server:start_link({local, ?MODULE}, ?MODULE, Bridge, []).
 configure(W, H) -> gen_server:call(?MODULE, {configure, W, H}).
@@ -22,6 +24,13 @@ set(Key, Val) -> gen_server:call(?MODULE, {set, Key, Val}).
 reset() -> gen_server:call(?MODULE, reset).
 print(Bin) -> gen_server:call(?MODULE, {print, Bin}).
 println() -> gen_server:call(?MODULE, println).
+tone(Freq, Ms) -> gen_server:call(?MODULE, {tone, Freq, Ms}).
+stop_tone() -> gen_server:call(?MODULE, stop_tone).
+is_playing() -> gen_server:call(?MODULE, is_playing).
+set_volume(V) -> gen_server:call(?MODULE, {set_volume, V}).
+get_volume() -> gen_server:call(?MODULE, get_volume).
+led(On) -> gen_server:call(?MODULE, {led, On}).
+led() -> gen_server:call(?MODULE, led).
 
 init(Bridge) -> {ok, #st{bridge = Bridge}}.
 
@@ -50,6 +59,17 @@ handle_call({set, base_color, C}, _From, S) -> {reply, ok, emit({set_base_color,
 handle_call({set, sleeping, true}, _From, S) -> {reply, ok, emit({sleep}, S#st{sleeping = true})};
 handle_call({set, sleeping, false}, _From, S) -> {reply, ok, emit({wakeup}, S#st{sleeping = false})};
 handle_call({set, brightness, Br}, _From, S) -> {reply, ok, emit({set_brightness, Br}, S#st{brightness = Br})};
+handle_call({tone, Freq, Ms}, _From, #st{volume = V} = S) ->
+    Until = erlang:monotonic_time(millisecond) + Ms,
+    {reply, true, (emit({tone, Freq, Ms, V}, S))#st{tone_until = Until}};
+handle_call(stop_tone, _From, S) -> {reply, ok, (emit({stop_tone}, S))#st{tone_until = undefined}};
+handle_call(is_playing, _From, #st{tone_until = U} = S) ->
+    {reply, is_integer(U) andalso erlang:monotonic_time(millisecond) < U, S};
+handle_call({set_volume, V}, _From, S) -> {reply, ok, S#st{volume = V}};
+handle_call(get_volume, _From, S) -> {reply, S#st.volume, S};
+handle_call({led, On}, _From, S) ->
+    {reply, ok, (emit({led, case On of true -> on; false -> off end}, S))#st{led = On}};
+handle_call(led, _From, S) -> {reply, S#st.led, S};
 handle_call({print, Bin}, _From, S) ->
     S1 = emit({print, Bin}, S),
     {reply, byte_size(Bin), S1#st{cursor = advance(Bin, S1)}};
