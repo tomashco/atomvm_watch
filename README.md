@@ -10,8 +10,11 @@ Milestone 2 is the on-device app loader ("app store"). See `docs/superpowers/spe
 
 ## Prerequisites
 
-- [mise](https://mise.jdx.dev) — installs every language tool below.
-- Docker — only for building the ESP32 runtime image (ESP-IDF 5.5 runs in a container).
+- [Nix](https://nixos.org/download) and [devenv](https://devenv.sh) — provide every language tool
+  below. Tool caches (hex, mix, rebar3, pnpm, Playwright browsers) stay in `.devenv/` inside the repo.
+- Optional: [direnv](https://direnv.net), to enter the environment automatically on `cd`.
+- Docker — only for building the ESP32 runtime image locally (ESP-IDF 5.5 runs in a container);
+  CI builds it otherwise.
 - Chrome or Edge — Web Serial is needed to flash from the browser.
 - An M5StickC Plus 2 and a USB-C data cable.
 
@@ -19,17 +22,23 @@ Milestone 2 is the on-device app loader ("app store"). See `docs/superpowers/spe
 
 ```sh
 git clone <this repo> && cd atomvm_watch
-mise install          # Erlang 27, Elixir 1.18, rebar3, Node 22, pnpm, esptool
-mise run setup        # deps.get, pnpm install, Playwright browsers
+devenv shell          # Erlang 27, Elixir 1.18, rebar3, Node 22, pnpm 10, Python 3.12, esptool
+setup                 # deps.get, pnpm install, Playwright browsers
 ```
+
+With direnv, run `direnv allow` once instead of `devenv shell`.
 
 ## Daily workflow
 
+Inside the devenv shell:
+
 ```sh
-mise run dev          # emulator at http://localhost:5173 with examples/clock preloaded
-mise run test         # Erlang unit tests, JS renderer tests, Playwright e2e
-mise run firmware     # builds firmware/m5stickc_plus2/AtomVM-m5stickc-plus2.img in Docker
+dev                   # emulator at http://localhost:5173 with examples/clock preloaded
+run-tests             # Erlang unit tests, JS renderer tests, Playwright e2e
+firmware              # builds firmware/m5stickc_plus2/AtomVM-m5stickc-plus2.img in Docker
 ```
+
+Each also works from outside the shell, for example `devenv shell -- run-tests`.
 
 First time on a watch: open the emulator page, plug the watch in, click **Install runtime**.
 After that **Install app** writes only the app `.avm` (about a second).
@@ -52,4 +61,4 @@ mix atomvm.esp32.flash --port /dev/cu.usbserial-*
 | `firmware/` | Partition tables and CI workflow for the ESP32 runtime images |
 | `docs/` | Specs and plans (`superpowers/`), overview docs (`overview/`) |
 
-Tasks are wired up as milestone 1 lands; `mise.toml` is the single source of truth for them.
+Tasks are wired up as milestone 1 lands; `devenv.nix` is the single source of truth for tools and tasks.

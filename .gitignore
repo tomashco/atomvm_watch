@@ -1,0 +1,8 @@
+# devenv / direnv state (also holds the hex, mix, rebar3, pnpm and Playwright caches)
+.devenv*
+devenv.local.nix
+.direnv/
+
+# local agent and tooling state
+.claude/worktrees/
+.superpowers/

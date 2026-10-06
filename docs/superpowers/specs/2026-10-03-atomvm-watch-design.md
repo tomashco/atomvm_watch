@@ -96,7 +96,7 @@ m5_emu.avm ┴─> AtomVM-web.wasm (worker thread)
 ## 4. `m5_emu` — Erlang side
 
 Rebar3 library, Erlang only, so Elixir and Gleam apps use it unchanged. Target AtomVM version
-is pinned in one place (`ATOMVM_VERSION` in `mise.toml`) and must match the wasm binary and the
+is pinned in one place (`ATOMVM_VERSION` in `devenv.nix`) and must match the wasm binary and the
 firmware.
 
 ### 4.1 Module surface
@@ -254,7 +254,7 @@ emulator and on the watch; it is the acceptance test for milestone 1.
 
 ## 10. Milestones
 
-1. Emulator runs `examples/clock`; `mise run dev` works; runtime and app flash from the page;
+1. Emulator runs `examples/clock`; `dev` works in `devenv shell`; runtime and app flash from the page;
    the same app runs on the watch. (This spec.)
 2. App loader: launcher app in `main.avm`, apps stored in the `apps` partition, runtime
    loading with `atomvm:add_avm_pack_binary/2`, installer writes to free slots, emulator

@@ -84,5 +84,5 @@ and the emulator models the `apps` partition. Specified separately.
 
 ## Versions
 
-A single `ATOMVM_VERSION` in `mise.toml` (`v0.7.0-beta.0`) pins the wasm VM, the firmware and the
+A single `ATOMVM_VERSION` in `devenv.nix` (`v0.7.0-beta.0`) pins the wasm VM, the firmware and the
 `atomvm` hex package. `atomvm_m5` is pinned to one commit. CI builds everything from those.
