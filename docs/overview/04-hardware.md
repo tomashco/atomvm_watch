@@ -34,8 +34,8 @@ Board notes:
 - The display goes through `atomvm_m5` (M5GFX), which autodetects the Plus 2 by chip package.
 - `atomvm_m5`'s `m5:get_board/0` lacks a Plus 2 case. Our firmware build applies a one-line patch
   returning `stick_cplus2` until the change is merged upstream.
-- Milestone 1 uses display, buttons, speaker, LED and battery level. IMU, RTC, HOLD, mic and IR
-  come later.
+- Milestone 1 uses display, buttons, speaker (tones and raw PCM), LED, battery level and the RTC
+  (emulated from the host clock). IMU, HOLD, mic and IR come later.
 - Download mode: if the installer can't connect, hold the power button while plugging in USB.
 
 ## Next boards

@@ -3,7 +3,7 @@
 -export([start_link/1, configure/2, cmd/1, start_write/0, end_write/0, get/1, set/2, reset/0,
          print/1, println/0]).
 -export([chars/1]).
--export([tone/2, stop_tone/0, is_playing/0, set_volume/1, get_volume/0, led/1, led/0]).
+-export([tone/2, stop_tone/0, play_raw/5, is_playing/0, set_volume/1, get_volume/0, led/1, led/0, ensure_table/1]).
 -export([init/1, handle_call/3, handle_cast/2]).
 
 -define(CELL_W, 6).
@@ -26,10 +26,14 @@ print(Bin) -> gen_server:call(?MODULE, {print, Bin}).
 println() -> gen_server:call(?MODULE, println).
 tone(Freq, Ms) -> gen_server:call(?MODULE, {tone, Freq, Ms}).
 stop_tone() -> gen_server:call(?MODULE, stop_tone).
+play_raw(Fmt, Data, Rate, Stereo, Repeat) -> gen_server:call(?MODULE, {play_raw, Fmt, Data, Rate, Stereo, Repeat}).
 is_playing() -> gen_server:call(?MODULE, is_playing).
 set_volume(V) -> gen_server:call(?MODULE, {set_volume, V}).
 get_volume() -> gen_server:call(?MODULE, get_volume).
 led(On) -> gen_server:call(?MODULE, {led, On}).
+%% Creates a public named ETS table owned by this long-lived server (no-op if it exists), so state
+%% kept there (e.g. the emulated RTC offset) outlives the app process that first wrote it.
+ensure_table(Name) -> gen_server:call(?MODULE, {ensure_table, Name}).
 led() -> gen_server:call(?MODULE, led).
 
 init(Bridge) -> {ok, #st{bridge = Bridge}}.
@@ -62,11 +66,24 @@ handle_call({set, brightness, Br}, _From, S) -> {reply, ok, emit({set_brightness
 handle_call({tone, Freq, Ms}, _From, #st{volume = V} = S) ->
     Until = erlang:monotonic_time(millisecond) + Ms,
     {reply, true, (emit({tone, Freq, Ms, V}, S))#st{tone_until = Until}};
+handle_call({play_raw, Fmt, Data, Rate, Stereo, Repeat}, _From, #st{volume = V} = S) ->
+    BytesPerFrame = (case Fmt of s16 -> 2; _ -> 1 end) * (case Stereo of true -> 2; false -> 1 end),
+    Ms = (byte_size(Data) div BytesPerFrame) * 1000 div Rate,
+    %% Repeat 0 loops until stop/0, as in M5Unified.
+    Until = erlang:monotonic_time(millisecond) + case Repeat of 0 -> 16#7FFFFFFF; _ -> Ms * Repeat end,
+    Cmd = {play_raw, Fmt, {raw_string, base64:encode(Data)}, Rate, Stereo, Repeat, V},
+    {reply, true, (emit(Cmd, S))#st{tone_until = Until}};
 handle_call(stop_tone, _From, S) -> {reply, ok, (emit({stop_tone}, S))#st{tone_until = undefined}};
 handle_call(is_playing, _From, #st{tone_until = U} = S) ->
     {reply, is_integer(U) andalso erlang:monotonic_time(millisecond) < U, S};
 handle_call({set_volume, V}, _From, S) -> {reply, ok, S#st{volume = V}};
 handle_call(get_volume, _From, S) -> {reply, S#st.volume, S};
+handle_call({ensure_table, Name}, _From, S) ->
+    case ets:info(Name, name) of
+        undefined -> Name = ets:new(Name, [named_table, public, set]);
+        _ -> ok
+    end,
+    {reply, ok, S};
 handle_call({led, On}, _From, S) ->
     {reply, ok, (emit({led, case On of true -> on; false -> off end}, S))#st{led = On}};
 handle_call(led, _From, S) -> {reply, S#st.led, S};

@@ -18,6 +18,9 @@ encode_cmd(Cmd) when is_tuple(Cmd) ->
     [Name | Args] = tuple_to_list(Cmd),
     [$[, join([str(atom_to_binary(Name, utf8)) | [val(A) || A <- Args]]), $]].
 
+%% {raw_string, Bin}: a string known to need no JSON escaping (e.g. base64), sent as is. Escaping
+%% walks the binary byte by byte, which is costly on AtomVM for audio-sized payloads.
+val({raw_string, B}) when is_binary(B) -> [$", B, $"];
 val(I) when is_integer(I) -> integer_to_binary(I);
 val(F) when is_float(F) -> float_to_binary(F, [{decimals, 4}, compact]);
 val(A) when is_atom(A) -> str(atom_to_binary(A, utf8));

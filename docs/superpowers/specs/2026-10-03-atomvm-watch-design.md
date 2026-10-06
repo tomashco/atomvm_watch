@@ -17,7 +17,7 @@ and the app to a watch over USB, and an Elixir example proves the full loop.
 Milestone 2 (separate spec, later): an on-device loader that lists, starts and receives multiple
 apps, and an installer that adds apps without reflashing the others.
 
-Out of scope for milestone 1: IMU, RTC, battery reading, HOLD pin, microphone, IR, Wi-Fi,
+Out of scope for milestone 1: IMU, battery reading, HOLD pin, microphone, IR, Wi-Fi,
 AtomGL/avm_scene display stack, a C/Emscripten port of the NIFs (see section 11).
 
 ## 2. Context and facts the design relies on
@@ -171,6 +171,12 @@ time recorded locally, so it needs no round trip. The red LED is driven by apps 
 `digital_write/2` and `digital_read/1` for pin 19 only, forwarding `led on|off`. Other pins
 return `{error, unsupported}`. Battery level arrives as `batt:N` casts.
 
+Added after milestone 1 shipped, so that atomvm_m5's `how_to_use` example runs:
+`m5_speaker:play_raw_u8/s8/s16` (all arities, NIF defaults: 44100 Hz, mono, repeat 1; repeat 0
+loops until `stop/0`) sends `play_raw fmt base64 rate stereo repeat vol`, which the page plays
+through a WebAudio buffer; `is_playing/0` covers it. `m5_rtc` is enabled and emulated from the
+host's UTC clock plus an offset that `set_datetime/date/time` adjust, so a set time keeps ticking.
+
 ## 5. `web/` — browser side
 
 Vite project, plain TypeScript, no framework. Files:
@@ -193,7 +199,7 @@ Vite project, plain TypeScript, no framework. Files:
   LovyanGFX (MIT/BSD-compatible), ported to a data file.
 - `src/input.ts`: on-screen buttons A, B and power, keyboard shortcuts (`A`, `B`, `P`), a
   battery slider. Sends `Module.cast("m5_emu_input", ...)`.
-- `src/audio.ts`: WebAudio square-wave tone with volume.
+- `src/audio.ts`: WebAudio square-wave tone with volume, and raw PCM playback (u8, s8, s16).
 - `src/loader.ts`: drag-and-drop, file picker and `?avm=<url>` loading; keeps the last app in
   IndexedDB so a reload restarts it.
 - `src/installer.ts`: Web Serial via `esptool-js`. Two buttons: **Install runtime** writes the

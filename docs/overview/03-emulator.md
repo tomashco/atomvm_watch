@@ -43,6 +43,8 @@ Erlang only, so Elixir and Gleam apps use it unchanged.
   `start_write`/`end_write` batching.
 - `m5_btn_a` / `b` / `c` / `pwr` / `ext`: all 22 functions of the `atomvm_m5` button API.
 - `m5_speaker`: `tone/2,3,4`, volume, `is_playing/0` (tracked locally, no round trip).
+- `m5_speaker`: also `play_raw_u8/s8/s16`, raw PCM played by the page through WebAudio.
+- `m5_rtc`: the host's UTC clock plus an offset that `set_datetime/date/time` adjust.
 - `m5_power`: battery level from the page's slider, not charging.
 - `gpio`: a shim for pin 19 (red LED) only.
 
@@ -56,7 +58,7 @@ of M5Unified's `Button_Class`, unit-tested on plain OTP.
   cursor advance and wrap for `print`/`println`, `set_text_size` scaling, sleep blanks the screen,
   brightness dims it. Font: LovyanGFX's 6x8 "Font0" glyphs.
 - **Input:** on-screen buttons A, B and Power (keys `A`, `B`, `P`), and a battery slider.
-- **Audio:** a WebAudio square wave.
+- **Audio:** a WebAudio square wave for tones, and an audio buffer for raw PCM.
 - **Loading apps:** drag-and-drop, a file picker, or `?avm=<url>`. The last app is kept in
   IndexedDB, so a reload restarts it.
 - **Errors:** a crashed VM shows the last stderr lines and a restart button. Unsupported calls

@@ -140,7 +140,7 @@ export class M5Renderer {
   // malformed command: non-finite numbers, or a string/number in the wrong place.
   private normalize(cmd: Command): Command | null {
     const [name, ...a] = cmd;
-    if (name === "tone" || name === "stop_tone" || name === "led") return cmd;
+    if (name === "tone" || name === "stop_tone" || name === "led" || name === "play_raw") return cmd;
     if (name === "set_text_size") {
       const f = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(1, Math.round(v)) : 1);
       return [name, f(a[0]), f(a[1])];
@@ -196,7 +196,7 @@ export class M5Renderer {
         case "set_brightness": this.brightness = n[0]; break;
         case "sleep": this.sleeping = true; break;
         case "wakeup": this.sleeping = false; break;
-        case "tone": case "stop_tone": case "led": this.onEvent?.(name, a); break;
+        case "tone": case "stop_tone": case "led": case "play_raw": this.onEvent?.(name, a); break;
         default:
           if (!this.warned.has(name)) { this.warned.add(name); console.warn(`m5emu: unsupported command ${name}`); }
       }

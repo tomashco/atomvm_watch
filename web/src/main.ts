@@ -6,7 +6,7 @@ import { attachCanvas } from "./canvas";
 import { startVm, defaultFactory, packUrls, versionHint, type VmHandle } from "./vm";
 import { appFromFile, appFromUrl, appUrl, saveLastApp, loadLastApp, type LoadedApp } from "./loader";
 import { bindInputs } from "./input";
-import { Buzzer } from "./audio";
+import { Buzzer, type RawFormat } from "./audio";
 import { makeConsole } from "./console";
 import { setupInstaller } from "./installer";
 
@@ -77,9 +77,12 @@ led.hidden = !profile.peripherals.led;
 // for the end-to-end test (window.m5emu.events); audio itself is not observable from Playwright.
 const events: Array<{ name: string; args: unknown[] }> = [];
 renderer.onEvent = (name, a) => {
-  events.push({ name, args: [...a] });
+  // play_raw carries the whole base64 sample payload; record its length, not the data.
+  events.push({ name, args: name === "play_raw" ? [a[0], String(a[1]).length, ...a.slice(2)] : [...a] });
   if (events.length > 1000) events.splice(0, events.length - 1000);
   if (name === "tone" && profile.peripherals.speaker) buzzer.tone(Number(a[0]), Number(a[1]), Number(a[2]));
+  else if (name === "play_raw" && profile.peripherals.speaker)
+    buzzer.playRaw(a[0] as RawFormat, String(a[1]), Number(a[2]), a[3] === "true", Number(a[4]), Number(a[5]));
   else if (name === "stop_tone") buzzer.stop();
   else if (name === "led") led.classList.toggle("on", a[0] === "on");
 };

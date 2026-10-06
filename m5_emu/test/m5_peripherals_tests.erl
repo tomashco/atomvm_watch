@@ -27,6 +27,39 @@ periph_test_() -> {foreach, local, fun setup/0, fun cleanup/1, [
         ok = m5_speaker:stop(),
         ?assertEqual(<<"m5emu.exec([[\"stop_tone\"]])">>, script()),
         ?assertNot(m5_speaker:is_playing()) end} end,
+    fun(_) -> {"play_raw sends base64 samples with rate, stereo, repeat and volume", fun() ->
+        ok = m5_speaker:set_volume(80),
+        %% 4410 mono u8 samples at 44100 Hz = 100 ms.
+        Data = binary:copy(<<128>>, 4410),
+        ?assertEqual(true, m5_speaker:play_raw_u8(Data, 44100, false)),
+        Expected = iolist_to_binary([<<"m5emu.exec([[\"play_raw\",\"u8\",\"">>, base64:encode(Data),
+                                     <<"\",44100,\"false\",1,80]])">>]),
+        ?assertEqual(Expected, script()),
+        ?assert(m5_speaker:is_playing()),
+        timer:sleep(130),
+        ?assertNot(m5_speaker:is_playing()),
+        %% s16 stereo: 4 bytes per frame; repeat 0 plays until stop/0.
+        ?assertEqual(true, m5_speaker:play_raw_s16(<<0:32>>, 8000, true, 0, -1, false)),
+        <<"m5emu.exec([[\"play_raw\",\"s16\",\"AAAAAA==\",8000,\"true\",0,80]])">> = script(),
+        ?assert(m5_speaker:is_playing()),
+        ok = m5_speaker:stop(), _ = script(),
+        ?assertNot(m5_speaker:is_playing()),
+        ?assertError(badarg, m5_speaker:play_raw_u8(not_a_binary)),
+        ?assertError(badarg, m5_speaker:play_raw_s8(<<1>>, 0)) end} end,
+    fun(_) -> {"rtc follows the host clock and keeps a set time ticking", fun() ->
+        Now = calendar:system_time_to_universal_time(erlang:system_time(second), second),
+        ?assert(abs(secs(m5_rtc:get_datetime()) - secs(Now)) =< 1),
+        ok = m5_rtc:set_datetime({{2021, 12, 31}, {23, 59, 58}}),
+        ?assertEqual({2021, 12, 31}, m5_rtc:get_date()),
+        timer:sleep(2100),
+        ?assertEqual({2022, 1, 1}, m5_rtc:get_date()),
+        ok = m5_rtc:set_date({2024, 2, 29}),
+        ?assertEqual({2024, 2, 29}, m5_rtc:get_date()),
+        ok = m5_rtc:set_time({12, 34, 56}),
+        {{2024, 2, 29}, {12, 34, S}} = m5_rtc:get_datetime(),
+        ?assert(S >= 56 andalso S =< 57),
+        ?assertError(badarg, m5_rtc:set_datetime(tomorrow)),
+        ok = m5_rtc:set_datetime(Now) end} end,
     fun(_) -> {"battery level comes from the input server", fun() ->
         m5_emu_input ! {emscripten, {cast, <<"batt:55">>}}, _ = m5_emu_input:board(),
         ?assertEqual(55, m5_power:get_battery_level()),
@@ -43,20 +76,20 @@ periph_test_() -> {foreach, local, fun setup/0, fun cleanup/1, [
         ?assertEqual({error, unsupported}, gpio:digital_write(2, high)) end} end,
     fun(_) -> {"stubs report enabled flags and types", fun() ->
         ?assert(m5_speaker:is_enabled()),
-        ?assertNot(m5_rtc:is_enabled()), ?assertNot(m5_imu:is_enabled()),
+        ?assert(m5_rtc:is_enabled()), ?assertNot(m5_imu:is_enabled()),
         ?assertEqual(unknown, m5_imu:get_type()), ?assertEqual(unknown, m5_power:get_type()) end} end,
     fun(_) -> {"unsupported functions return an error and log once per function", fun() ->
         Out = capture(fun() ->
             ?assertEqual({error, unsupported}, m5_imu:get_accel()),
             ?assertEqual({error, unsupported}, m5_imu:get_accel()),
-            ?assertEqual({error, unsupported}, m5_rtc:get_time()),
-            ?assertEqual({error, unsupported}, m5_speaker:play_raw_u8(<<>>)),
+            ?assertEqual({error, unsupported}, m5_imu:get_gyro()),
+            ?assertEqual({error, unsupported}, m5_display:get_clip_rect()),
             ?assertEqual({error, unsupported}, m5_power_axp192:get_battery_level()),
             ?assertEqual({error, unsupported}, m5_in_i2c:begin_(1, 2, 3)),
             ?assertEqual({error, unsupported}, m5_display:get_raw_color()) end),
         ?assertEqual(1, count(Out, "m5_imu:get_accel/0")),
-        ?assertEqual(1, count(Out, "m5_rtc:get_time/0")),
-        ?assertEqual(1, count(Out, "m5_speaker:play_raw_u8/1")),
+        ?assertEqual(1, count(Out, "m5_imu:get_gyro/0")),
+        ?assertEqual(1, count(Out, "m5_display:get_clip_rect/0")),
         ?assertEqual(1, count(Out, "m5_power_axp192:get_battery_level/0")),
         ?assertEqual(1, count(Out, "m5_in_i2c:begin_/3")),
         ?assertEqual(1, count(Out, "m5_display:get_raw_color/0")) end} end
@@ -79,3 +112,4 @@ collect(Parent, Acc) ->
         {done, Parent} -> Parent ! {out, Acc}
     end.
 count(Out, Sub) -> length(string:split(lists:flatten(Out), Sub, all)) - 1.
+secs(DT) -> calendar:datetime_to_gregorian_seconds(DT).
