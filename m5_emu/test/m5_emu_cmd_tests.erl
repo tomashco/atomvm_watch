@@ -8,6 +8,12 @@ encode_test() ->
 exec_script_test() ->
     ?assertEqual(<<"m5emu.exec([[\"sleep\"]])">>, iolist_to_binary(m5_emu_cmd:exec_script([{sleep}]))).
 
+batch_script_test() ->
+    Cmds = [{fill_rect, 0, 0, 10, 20, 16#FF0000}, {print, <<"a", 1, "b">>}, {sleep}],
+    Batch = lists:foldl(fun(C, B) -> m5_emu_cmd:batch_append(B, C) end, <<>>, Cmds),
+    ?assertEqual(iolist_to_binary(m5_emu_cmd:exec_script(Cmds)),
+                 iolist_to_binary(m5_emu_cmd:batch_script(Batch))).
+
 negative_and_float_test() ->
     ?assertEqual(<<"[[\"set_text_size\",-1,2.5]]">>, iolist_to_binary(m5_emu_cmd:encode([{set_text_size, -1, 2.5}]))).
 

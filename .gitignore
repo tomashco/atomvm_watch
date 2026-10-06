@@ -12,6 +12,7 @@ web/node_modules/
 web/dist/
 web/public/atomvm/
 web/public/boards/
+web/public/m5_emu.avm
 vendor/
 m5_emu_mix/priv/web/
 **/_build/

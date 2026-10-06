@@ -12,7 +12,7 @@
 -record(st, {bridge, native_w = 135, native_h = 240, rotation = 0, cursor = {0, 0},
              text_size = {1, 1}, color = 16#FFFFFF, base_color = 0, sleeping = false,
              brightness = 128, batch = none, depth = 0,
-             tone_until = undefined, volume = 64, led = false}).  % batch :: none | [command()] (reversed)
+             tone_until = undefined, volume = 64, led = false}).  % batch :: none | binary() (m5_emu_cmd:batch_append/2)
 
 start_link(Bridge) -> gen_server:start_link({local, ?MODULE}, ?MODULE, Bridge, []).
 configure(W, H) -> gen_server:call(?MODULE, {configure, W, H}).
@@ -37,11 +37,11 @@ init(Bridge) -> {ok, #st{bridge = Bridge}}.
 handle_call({configure, W, H}, _From, S) -> {reply, ok, S#st{native_w = W, native_h = H}};
 handle_call(reset, _From, #st{bridge = B, native_w = W, native_h = H}) -> {reply, ok, #st{bridge = B, native_w = W, native_h = H}};
 handle_call({cmd, Cmd}, _From, S) -> {reply, ok, emit(Cmd, S)};
-handle_call(start_write, _From, #st{depth = 0} = S) -> {reply, ok, S#st{batch = [], depth = 1}};
+handle_call(start_write, _From, #st{depth = 0} = S) -> {reply, ok, S#st{batch = <<>>, depth = 1}};
 handle_call(start_write, _From, #st{depth = D} = S) -> {reply, ok, S#st{depth = D + 1}};
 handle_call(end_write, _From, #st{depth = 0} = S) -> {reply, ok, S};
 handle_call(end_write, _From, #st{depth = D} = S) when D > 1 -> {reply, ok, S#st{depth = D - 1}};
-handle_call(end_write, _From, #st{batch = Cmds} = S) -> {reply, ok, flush(lists:reverse(Cmds), S#st{batch = none, depth = 0})};
+handle_call(end_write, _From, #st{batch = Batch} = S) -> {reply, ok, flush_batch(Batch, S#st{batch = none, depth = 0})};
 handle_call({get, width}, _From, S) -> {reply, width(S), S};
 handle_call({get, height}, _From, S) -> {reply, height(S), S};
 handle_call({get, rotation}, _From, S) -> {reply, S#st.rotation, S};
@@ -81,10 +81,12 @@ handle_call(println, _From, S) ->
 handle_cast(_, S) -> {noreply, S}.
 
 emit(Cmd, #st{batch = none} = S) -> flush([Cmd], S);
-emit(Cmd, #st{batch = Cmds} = S) -> S#st{batch = [Cmd | Cmds]}.
+emit(Cmd, #st{batch = Batch} = S) -> S#st{batch = m5_emu_cmd:batch_append(Batch, Cmd)}.
 
-flush([], S) -> S;
 flush(Cmds, #st{bridge = Bridge} = S) -> ok = Bridge:run_script(m5_emu_cmd:exec_script(Cmds)), S.
+
+flush_batch(<<>>, S) -> S;
+flush_batch(Batch, #st{bridge = Bridge} = S) -> ok = Bridge:run_script(m5_emu_cmd:batch_script(Batch)), S.
 
 width(#st{rotation = R, native_w = W, native_h = H}) -> case R band 1 of 0 -> W; 1 -> H end.
 height(#st{rotation = R, native_w = W, native_h = H}) -> case R band 1 of 0 -> H; 1 -> W end.

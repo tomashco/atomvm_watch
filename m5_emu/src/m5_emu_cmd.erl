@@ -1,7 +1,16 @@
 -module(m5_emu_cmd).
--export([encode/1, exec_script/1, to_rgb888/1]).
+-export([encode/1, exec_script/1, batch_append/2, batch_script/1, to_rgb888/1]).
 
 exec_script(Cmds) -> [<<"m5emu.exec(">>, encode(Cmds), <<")">>].
+
+%% A start_write batch is kept as one binary of comma-joined encoded commands, not as a list of
+%% terms. AtomVM's default heap growth (bounded_free) garbage-collects every few allocations and
+%% each GC copies the live heap, so a 1000-term batch made batching ~13x slower than one run_script
+%% per command. A binary over 64 bytes lives off-heap, so the live heap stays small.
+batch_append(<<>>, Cmd) -> iolist_to_binary(encode_cmd(Cmd));
+batch_append(Batch, Cmd) -> iolist_to_binary([Batch, $, | encode_cmd(Cmd)]).
+
+batch_script(Batch) -> [<<"m5emu.exec([">>, Batch, <<"])">>].
 
 encode(Cmds) -> [$[, join([encode_cmd(C) || C <- Cmds]), $]].
 
