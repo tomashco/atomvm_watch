@@ -25,7 +25,9 @@ emulator (Espruino built with Emscripten + canvas), with the BEAM instead of a J
 
 - AtomVM ships an `emscripten` platform with prebuilt `AtomVM-web-<ver>.wasm` and `.mjs`.
   `scripts/fetch-atomvm.sh` downloads the build matching `ATOMVM_VERSION`, checks its sha256 and
-  puts it under `web/public/atomvm/`. The page never modifies it.
+  puts it under `web/public/atomvm/`. The page never modifies it. The release has no stdlib, so
+  `scripts/build-atomvmlib.sh` builds `atomvmlib.avm` from AtomVM source at the same version; it
+  loads after `m5_emu.avm` and before the app.
 - Erlang to JS: `emscripten:run_script(Script, [main_thread, async])`.
 - JS to Erlang: `Module.cast(name, string)`, delivered to a registered process as
   `{emscripten, {cast, Bin}}`.
@@ -63,7 +65,8 @@ of M5Unified's `Button_Class`, unit-tested on plain OTP.
 ## Dev loop
 
 `mix m5.emulate` packs the project, serves the page with the right headers, opens
-`?avm=http://localhost:<port>/app.avm`, and re-packs and reloads on file changes.
+`?avm=http://localhost:<port>/app.avm`, and re-packs on file changes. The page polls `/__version`
+(bumped after each successful pack) and reloads the VM when it changes.
 
 ## Known gaps and future direction
 

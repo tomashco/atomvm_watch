@@ -12,6 +12,10 @@ AtomVM (`ATOMVM_VERSION` in `versions.env`) plus the `atomvm_m5` ESP-IDF compone
 
 Upstream PR for the patch: not opened yet (open it against `pguyot/atomvm_m5` and put the URL here).
 
+The full manual device procedure with expected observations is `docs/device-checklist.md`.
+The Pages workflow mirrors the latest release's manifest and image into the site (`firmware/`),
+because release downloads lack CORS headers under COEP.
+
 ## Build
 
 CI: `.github/workflows/firmware.yml` (PRs touching `firmware/**`, manual dispatch, and tags

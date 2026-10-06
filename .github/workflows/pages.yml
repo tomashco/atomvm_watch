@@ -1,0 +1,50 @@
+name: pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load pinned versions
+        run: cat versions.env >> "$GITHUB_ENV"
+      - uses: cachix/install-nix-action@v31
+      - run: nix profile install nixpkgs#devenv
+      - name: Build the site
+        run: devenv shell -- bash -c 'setup && scripts/build-m5-emu.sh && cd web && pnpm build'
+      # Release downloads send no CORS headers, which COEP (require-corp) needs, so the latest
+      # firmware release is mirrored into the site and served same-origin.
+      - name: Mirror the latest firmware release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p web/dist/firmware
+          if ! gh release download --repo "$GITHUB_REPOSITORY" \
+               --pattern 'manifest-m5stickc_plus2.json' --dir web/dist/firmware --clobber; then
+            echo "::warning::No release with manifest-m5stickc_plus2.json yet; deploying without firmware (Install runtime will not work)"
+            exit 0
+          fi
+          img=$(python3 -c 'import json;print(json.load(open("web/dist/firmware/manifest-m5stickc_plus2.json"))["parts"][0]["path"])')
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern "$img" --dir web/dist/firmware --clobber
+          ls -l web/dist/firmware
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+      - id: deploy
+        uses: actions/deploy-pages@v4
+      - name: Smoke the deployment
+        run: |
+          curl -fsSI "${{ steps.deploy.outputs.page_url }}" | head -1
+          curl -fsSI "${{ steps.deploy.outputs.page_url }}atomvm/AtomVM.wasm" | grep -i 'content-type: application/wasm'

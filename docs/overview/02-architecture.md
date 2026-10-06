@@ -26,7 +26,8 @@ milestone 1 acceptance test).
 An app compiles against `atomvm_m5`'s stub modules:
 
 - **On the watch**, the stubs are replaced by `atomvm_m5`'s NIFs (M5Unified 0.2.10, M5GFX 0.2.17).
-- **In the browser**, `m5_emu.avm` is loaded before the app's `.avm`. AtomVM resolves a module
+- **In the browser**, `m5_emu.avm` is loaded first, then `atomvmlib.avm` (built from AtomVM source,
+  since the wasm release has no stdlib), then the app's `.avm`. AtomVM resolves a module
   from the first pack that contains it, so `m5_emu` shadows the stubs.
 
 Board-specific values (screen size, board atom, which buttons exist) come from the board profile
@@ -38,8 +39,9 @@ fails if our export list drifts from the pinned `atomvm_m5` revision.
 ## Browser data flow
 
 ```
-app .avm ──┐
-m5_emu.avm ┴─> AtomVM-web.wasm (worker thread)
+app .avm ──────┐
+atomvmlib.avm ─┤
+m5_emu.avm ────┴─> AtomVM-web.wasm (worker thread)
                  │  emscripten:run_script("m5emu.exec([...])")   drawing, tone, led
                  ▼
             web/src/m5emu.ts (main thread) ──> <canvas>, WebAudio, DOM
@@ -84,5 +86,5 @@ and the emulator models the `apps` partition. Specified separately.
 
 ## Versions
 
-A single `ATOMVM_VERSION` in `devenv.nix` (`v0.7.0-beta.0`) pins the wasm VM, the firmware and the
-`atomvm` hex package. `atomvm_m5` is pinned to one commit. CI builds everything from those.
+A single `ATOMVM_VERSION` in `versions.env` (`v0.7.0-beta.0`) pins the wasm VM, `atomvmlib.avm`,
+the firmware and the `atomvm` hex package. `atomvm_m5` is pinned to one commit in the same file. CI builds everything from those.

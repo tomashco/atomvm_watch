@@ -31,7 +31,7 @@
 - `atomvm:add_avm_pack_binary/2`, `esp:partition_read/3`, `esp:partition_write/3`,
   `esp:partition_erase_range/3` exist, which milestone 2 builds on.
 - AtomVM 0.7 flash layout: VM at `0x10000`, `boot.avm` at `0x1D0000`, `main.avm` at `0x250000`.
-- One `ATOMVM_VERSION` (`v0.7.0-beta.0`) keeps the wasm VM, the firmware and compiled apps
+- One `ATOMVM_VERSION` in `versions.env` (`v0.7.0-beta.0`) keeps the wasm VM, the firmware and compiled apps
   compatible.
 
 ## Open questions

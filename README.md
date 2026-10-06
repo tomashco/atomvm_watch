@@ -23,10 +23,13 @@ Milestone 2 is the on-device app loader ("app store"). See `docs/superpowers/spe
 ```sh
 git clone <this repo> && cd atomvm_watch
 devenv shell          # Erlang 27, Elixir 1.18, rebar3, Node 22, pnpm 10, Python 3.12, esptool
-setup                 # deps.get, pnpm install, Playwright browsers
+setup                 # wasm build, atomvmlib.avm, deps.get, pnpm install
 ```
 
 With direnv, run `direnv allow` once instead of `devenv shell`.
+
+Playwright's chromium is not part of `setup`; once, before `run-tests`:
+`(cd web && pnpm exec playwright install chromium)`.
 
 ## Daily workflow
 
@@ -34,7 +37,7 @@ Inside the devenv shell:
 
 ```sh
 dev                   # emulator at http://localhost:5173 with examples/clock preloaded
-run-tests             # Erlang unit tests, JS renderer tests, Playwright e2e
+run-tests             # partitions, eunit, mix test, vitest, node smoke, Playwright e2e
 firmware              # builds firmware/m5stickc_plus2/AtomVM-m5stickc-plus2.img in Docker
 ```
 
@@ -61,4 +64,15 @@ mix atomvm.esp32.flash --port /dev/cu.usbserial-*
 | `firmware/` | Partition tables and CI workflow for the ESP32 runtime images |
 | `docs/` | Specs and plans (`superpowers/`), overview docs (`overview/`) |
 
-Tasks are wired up as milestone 1 lands; `devenv.nix` is the single source of truth for tools and tasks.
+## Quick start
+
+Live demo: <https://tomashco.github.io/atomvm_watch/> (the clock example preloads with
+`?avm=./fixtures/clock.avm`).
+
+1. Open the page in Chrome or Edge. The emulator shows the watch with the clock app.
+2. Drop a `clock.avm` (or any `.avm` built for `atomvm_m5`) on the page, or pick one with the file picker.
+3. Plug in the watch, click **Install runtime** (once), then **Install app**.
+
+`devenv.nix` is the single source of truth for tools and tasks; `versions.env` pins `ATOMVM_VERSION`
+and the `atomvm_m5` commit. CI (`.github/workflows/ci.yml`) runs `run-tests`; pushes to `main`
+deploy the site (`pages.yml`). Manual device steps: `docs/device-checklist.md`.
