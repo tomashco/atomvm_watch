@@ -88,9 +88,9 @@ set_text_size(S) -> set_text_size(S, S).
 set_text_size(SX, SY) -> m5_emu_display:set(text_size, {SX, SY}).
 font_height() -> {_, SY} = m5_emu_display:get(text_size), round(8 * SY).
 font_width() -> {SX, _} = m5_emu_display:get(text_size), round(6 * SX).
-draw_string(S, X, Y) -> m5_emu_display:cmd({draw_string, iolist_to_binary(S), X, Y}), font_width() * iolist_size(S).
-draw_center_string(S, X, Y) -> m5_emu_display:cmd({draw_center_string, iolist_to_binary(S), X, Y}), font_width() * iolist_size(S).
-draw_right_string(S, X, Y) -> m5_emu_display:cmd({draw_right_string, iolist_to_binary(S), X, Y}), font_width() * iolist_size(S).
+draw_string(S, X, Y) -> m5_emu_display:cmd({draw_string, iolist_to_binary(S), X, Y}), font_width() * length(m5_emu_display:chars(iolist_to_binary(S))).
+draw_center_string(S, X, Y) -> m5_emu_display:cmd({draw_center_string, iolist_to_binary(S), X, Y}), font_width() * length(m5_emu_display:chars(iolist_to_binary(S))).
+draw_right_string(S, X, Y) -> m5_emu_display:cmd({draw_right_string, iolist_to_binary(S), X, Y}), font_width() * length(m5_emu_display:chars(iolist_to_binary(S))).
 print(S) -> m5_emu_display:print(iolist_to_binary(S)).
 println(S) -> N = print(S), N + println().
 println() -> m5_emu_display:println().

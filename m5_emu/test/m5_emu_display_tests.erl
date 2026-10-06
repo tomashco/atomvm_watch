@@ -53,6 +53,24 @@ display_test_() -> {foreach, local, fun setup/0, fun cleanup/1, [
         ok = m5_display:set_cursor(0, 0), _ = script(),
         _ = m5_display:print(<<"é"/utf8>>), _ = script(),
         ?assertEqual({6, 0}, m5_display:get_cursor()) end} end,
+    fun(_) -> {"nested start_write keeps buffered commands", fun() ->
+        ok = m5_display:start_write(),
+        ok = m5_display:fill_rect(0, 0, 1, 1, 0),
+        ok = m5_display:start_write(),
+        ok = m5_display:draw_pixel(5, 5, 1),
+        ok = m5_display:end_write(),
+        ?assertEqual(timeout, script()),
+        ok = m5_display:end_write(),
+        ?assertEqual(<<"m5emu.exec([[\"fill_rect\",0,0,1,1,0],[\"draw_pixel\",5,5,1]])">>, script()),
+        ok = m5_display:end_write(),
+        ?assertEqual(timeout, script()) end} end,
+    fun(_) -> {"invalid utf-8 does not crash the server", fun() ->
+        Pid = whereis(m5_emu_display),
+        ok = m5_display:set_cursor(0, 0), _ = script(),
+        ?assertEqual(2, m5_display:print(<<255, 254>>)), _ = script(),
+        ?assertEqual({12, 0}, m5_display:get_cursor()),
+        ?assertEqual(Pid, whereis(m5_emu_display)),
+        ?assertEqual(6, m5_display:draw_string(<<"é"/utf8>>, 0, 0)) end} end,
     fun(_) -> {"unsupported functions return an error tuple", fun() ->
         ?assertEqual({error, unsupported}, m5_display:set_scroll_rect(0, 0, 1, 1)),
         ?assertEqual(ok, m5_display:set_epd_mode(fastest)) end} end

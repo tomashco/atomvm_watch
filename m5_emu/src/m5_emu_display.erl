@@ -2,6 +2,7 @@
 -behaviour(gen_server).
 -export([start_link/1, configure/2, cmd/1, start_write/0, end_write/0, get/1, set/2, reset/0,
          print/1, println/0]).
+-export([chars/1]).
 -export([init/1, handle_call/3, handle_cast/2]).
 
 -define(CELL_W, 6).
@@ -9,7 +10,7 @@
 
 -record(st, {bridge, native_w = 135, native_h = 240, rotation = 0, cursor = {0, 0},
              text_size = {1, 1}, color = 16#FFFFFF, base_color = 0, sleeping = false,
-             brightness = 128, batch = none}).  % batch :: none | [command()] (reversed)
+             brightness = 128, batch = none, depth = 0}).  % batch :: none | [command()] (reversed)
 
 start_link(Bridge) -> gen_server:start_link({local, ?MODULE}, ?MODULE, Bridge, []).
 configure(W, H) -> gen_server:call(?MODULE, {configure, W, H}).
@@ -27,9 +28,11 @@ init(Bridge) -> {ok, #st{bridge = Bridge}}.
 handle_call({configure, W, H}, _From, S) -> {reply, ok, S#st{native_w = W, native_h = H}};
 handle_call(reset, _From, #st{bridge = B, native_w = W, native_h = H}) -> {reply, ok, #st{bridge = B, native_w = W, native_h = H}};
 handle_call({cmd, Cmd}, _From, S) -> {reply, ok, emit(Cmd, S)};
-handle_call(start_write, _From, S) -> {reply, ok, S#st{batch = []}};
-handle_call(end_write, _From, #st{batch = none} = S) -> {reply, ok, S};
-handle_call(end_write, _From, #st{batch = Cmds} = S) -> {reply, ok, flush(lists:reverse(Cmds), S#st{batch = none})};
+handle_call(start_write, _From, #st{depth = 0} = S) -> {reply, ok, S#st{batch = [], depth = 1}};
+handle_call(start_write, _From, #st{depth = D} = S) -> {reply, ok, S#st{depth = D + 1}};
+handle_call(end_write, _From, #st{depth = 0} = S) -> {reply, ok, S};
+handle_call(end_write, _From, #st{depth = D} = S) when D > 1 -> {reply, ok, S#st{depth = D - 1}};
+handle_call(end_write, _From, #st{batch = Cmds} = S) -> {reply, ok, flush(lists:reverse(Cmds), S#st{batch = none, depth = 0})};
 handle_call({get, width}, _From, S) -> {reply, width(S), S};
 handle_call({get, height}, _From, S) -> {reply, height(S), S};
 handle_call({get, rotation}, _From, S) -> {reply, S#st.rotation, S};
@@ -73,4 +76,11 @@ advance(Bin, #st{cursor = {X0, Y0}, text_size = {SX, SY}} = S) ->
                    ($\r, {_X, Y}) -> {0, Y};
                    (_, {X, Y}) when X + CW > W -> {CW, Y + CH};
                    (_, {X, Y}) -> {X + CW, Y}
-                end, {X0, Y0}, unicode:characters_to_list(Bin)).
+                end, {X0, Y0}, chars(Bin)).
+
+%% Code points of Bin; malformed UTF-8 falls back to one cell per byte.
+chars(Bin) ->
+    case unicode:characters_to_list(Bin) of
+        L when is_list(L) -> L;
+        _ -> binary_to_list(Bin)
+    end.
