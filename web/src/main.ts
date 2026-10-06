@@ -13,7 +13,7 @@ import { setupInstaller } from "./installer";
 const BASE = import.meta.env.BASE_URL;
 // Top-left of the screen window in the device image, in image pixels. board.json has no screen
 // origin yet; this matches boards/m5stickc_plus2/device.svg.
-const SCREEN_ORIGIN = { x: 32, y: 60 };
+const SCREEN_ORIGIN = { x: 20, y: 40 };
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const con = makeConsole($("console"));
@@ -30,10 +30,36 @@ const deviceUrl = new URL(`${BASE}boards/${profile.id}/${profile.deviceImage}`, 
 const scale = profile.screen.scale;
 frame.style.backgroundImage = `url("${deviceUrl}")`;
 frame.style.setProperty("--scale", String(scale));
+// Rotation of the whole device on the page, in quarter turns counter-clockwise (0-3); one turn makes landscape apps (m5_display rotation 1) read upright. This is only how the
+// device is shown; the app's own m5_display rotation is separate. Remembered per browser.
+const stage = $("stage");
+const ROTATION_KEY = "atomvm_watch.rotation";
+let quarterTurns = 0;
+try { quarterTurns = (Number(localStorage.getItem(ROTATION_KEY)) || 0) % 4; } catch { /* storage unavailable */ }
+let frameW = 0, frameH = 0;
+const layoutDevice = () => {
+  if (!frameW) return;
+  const odd = quarterTurns % 2 === 1;
+  const stageW = odd ? frameH : frameW, stageH = odd ? frameW : frameH;
+  stage.style.width = `${stageW}px`;
+  stage.style.height = `${stageH}px`;
+  frame.style.left = `${(stageW - frameW) / 2}px`;
+  frame.style.top = `${(stageH - frameH) / 2}px`;
+  frame.style.transform = `rotate(${-quarterTurns * 90}deg)`;
+};
+$("rotate").addEventListener("click", () => {
+  quarterTurns = (quarterTurns + 1) % 4;
+  try { localStorage.setItem(ROTATION_KEY, String(quarterTurns)); } catch { /* storage unavailable */ }
+  layoutDevice();
+});
+
 const img = new Image();
 img.onload = () => {
-  frame.style.width = `${img.naturalWidth * scale}px`;
-  frame.style.height = `${img.naturalHeight * scale}px`;
+  frameW = img.naturalWidth * scale;
+  frameH = img.naturalHeight * scale;
+  frame.style.width = `${frameW}px`;
+  frame.style.height = `${frameH}px`;
+  layoutDevice();
 };
 img.src = deviceUrl;
 

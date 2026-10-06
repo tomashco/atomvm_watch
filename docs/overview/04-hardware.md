@@ -60,11 +60,11 @@ board library other than `atomvm_m5`. That is out of scope and not designed for 
   "id": "m5stickc_plus2",
   "name": "M5StickC Plus 2",
   "boardAtom": "stick_cplus2",
-  "screen": { "width": 135, "height": 240, "scale": 3 },
+  "screen": { "width": 135, "height": 240, "scale": 1.5 },
   "buttons": [
-    { "id": "a",   "label": "A",     "key": "a", "x": 67,  "y": 300 },
-    { "id": "b",   "label": "B",     "key": "b", "x": 150, "y": 160 },
-    { "id": "pwr", "label": "Power", "key": "p", "x": -15, "y": 160 }
+    { "id": "a",   "label": "A",     "key": "a", "x": 87,  "y": 305 },
+    { "id": "b",   "label": "B",     "key": "b", "x": 171, "y": 140 },
+    { "id": "pwr", "label": "Power", "key": "p", "x": 4, "y": 140 }
   ],
   "peripherals": { "speaker": true, "led": true, "battery": true },
   "chip": "ESP32",

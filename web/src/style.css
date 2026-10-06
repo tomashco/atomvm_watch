@@ -8,7 +8,9 @@ main { display: flex; flex-wrap: wrap; gap: 1.5rem; padding: 1.25rem; align-item
 
 .device { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
 /* The device image is set from profile.deviceImage in main.ts; size and canvas offsets too. */
-.frame { position: relative; background: no-repeat center / 100% 100%; min-width: 135px; min-height: 240px; }
+/* The stage reserves the rotated frame's bounding box; the frame is centred in it and rotated. */
+.stage { position: relative; }
+.frame { position: absolute; background: no-repeat center / 100% 100%; min-width: 135px; min-height: 240px; transition: transform 0.2s ease; }
 .frame canvas { position: absolute; image-rendering: pixelated; background: #000; }
 .led { position: absolute; top: 12px; right: 18%; width: 10px; height: 10px; border-radius: 50%; background: #400; }
 .led.on { background: #f00; box-shadow: 0 0 8px #f00; }

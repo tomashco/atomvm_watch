@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const SMOKE_AVM = fileURLToPath(new URL("./fixtures/smoke_app.avm", import.meta.url));
 
-// The canvas is the native 135x240 framebuffer (CSS scales it 3x); coordinates are native.
+// The canvas is the native 135x240 framebuffer (CSS scales it by the profile scale); coordinates are native.
 // Alpha is included so a blank (never drawn) canvas, which reads 0,0,0,0, can't pass.
 const pixel = (page: Page, x: number, y: number) =>
   page.evaluate(([x, y]) => {
@@ -126,4 +126,24 @@ test("clock app boots, reacts to buttons, and can be replaced", async ({ page })
   expect(await canvasDigest(page)).toBe(before);
   expect(await pixel(page, 20, 40)).toBe("255,0,0,255");
   expect((await commands(page)).filter(isClockCommand)).toEqual([]);
+});
+
+test("rotate button turns the device a quarter turn and is remembered", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => localStorage.removeItem("atomvm_watch.rotation"));
+  await page.reload();
+  const size = (sel: string) => page.locator(sel).evaluate((e) => [e.clientWidth, e.clientHeight]);
+  await expect.poll(() => size("#stage")).not.toEqual([0, 0]);
+  const [w, h] = await size("#stage");
+  expect(h).toBeGreaterThan(w); // the stick stands upright by default
+
+  await page.click("#rotate");
+  await expect(page.locator("#frame")).toHaveCSS("transform", /^matrix\(0, -1, 1, 0/); // rotate(-90deg)
+  expect(await size("#stage")).toEqual([h, w]);
+
+  await page.reload();
+  await expect.poll(() => size("#stage")).toEqual([h, w]);
+
+  for (let i = 0; i < 3; i++) await page.click("#rotate");
+  await expect.poll(() => size("#stage")).toEqual([w, h]);
 });

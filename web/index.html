@@ -10,8 +10,9 @@
 <header><h1>atomvm_watch</h1><span id="board-name"></span></header>
 <main>
   <section class="device">
-    <div id="frame" class="frame"><canvas id="screen"></canvas><div id="led" class="led"></div></div>
+    <div id="stage" class="stage"><div id="frame" class="frame"><canvas id="screen"></canvas><div id="led" class="led"></div></div></div>
     <div id="controls" class="controls"></div>
+    <button id="rotate" type="button" title="Rotate the device 90° counter-clockwise">↺ Rotate 90°</button>
   </section>
   <section class="side">
     <div id="drop" class="drop">Drop an <code>.avm</code> here, or <label class="pick"><input id="file" type="file" accept=".avm" hidden>choose a file</label></div>
