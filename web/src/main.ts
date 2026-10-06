@@ -120,7 +120,7 @@ drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); runFil
 
 setupInstaller(profile, {
   connect: $("connect"), runtime: $("install-runtime"), app: $("install-app"),
-  chip: $("chip"), progress: $<HTMLProgressElement>("progress"),
+  chip: $("chip"), progress: $<HTMLProgressElement>("progress"), section: $("install"),
 }, () => current, con);
 
 try {
