@@ -1,6 +1,8 @@
 defmodule M5EmuMix.Server do
   @moduledoc false
   def start(opts) do
+    opts = Keyword.put_new_lazy(opts, :version, &M5EmuMix.Version.new/0)
+
     Bandit.start_link(
       plug: {M5EmuMix.Plug, opts},
       port: Keyword.get(opts, :port, 4174),
@@ -24,7 +26,7 @@ defmodule M5EmuMix.Plug do
   def init(opts), do: Map.new(opts)
 
   @impl true
-  def call(conn, %{web_dir: dir, avm: avm}) do
+  def call(conn, %{web_dir: dir, avm: avm, version: version}) do
     conn =
       conn
       |> put_resp_header("cross-origin-opener-policy", "same-origin")
@@ -37,16 +39,11 @@ defmodule M5EmuMix.Plug do
         serve(conn, avm, "application/octet-stream")
 
       "/__version" ->
-        case File.stat(avm, time: :posix) do
-          {:ok, %{mtime: m, size: s}} ->
-            conn |> put_resp_content_type("text/plain") |> send_resp(200, "#{m}-#{s}")
-
-          _ ->
-            send_resp(conn, 404, "no app")
-        end
+        conn |> put_resp_content_type("text/plain") |> send_resp(200, to_string(M5EmuMix.Version.get(version)))
 
       path ->
-        rel = if path == "/", do: "index.html", else: String.trim_leading(path, "/")
+        decoded = URI.decode(path)
+        rel = if decoded == "/", do: "index.html", else: String.trim_leading(decoded, "/")
 
         case Path.safe_relative(rel) do
           {:ok, safe} -> serve(conn, Path.join(dir, safe), MIME.from_path(safe))

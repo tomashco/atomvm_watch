@@ -131,6 +131,18 @@ installer = setupInstaller(profile, {
   chip: $("chip"), progress: $<HTMLProgressElement>("progress"), section: $("install"),
 }, () => current, con);
 
+// `mix m5.emulate` serves /__version (a counter bumped after each successful pack); reload when it changes.
+if (params.get("dev") === "1") {
+  let last: string | undefined;
+  setInterval(async () => {
+    try {
+      const v = await (await fetch("/__version", { cache: "no-store" })).text();
+      if (last !== undefined && v !== last) location.reload();
+      last = v;
+    } catch { /* server restarting */ }
+  }, 1000);
+}
+
 try {
   const avmParam = params.get("avm");
   if (avmParam) await run(await appFromUrl(avmParam));
@@ -141,16 +153,4 @@ try {
   }
 } catch (e) {
   fail(e);
-}
-
-// `mix m5.emulate` serves /__version (the packed app mtime); reload when it changes.
-if (params.get("dev") === "1") {
-  let last: string | undefined;
-  setInterval(async () => {
-    try {
-      const v = await (await fetch("/__version", { cache: "no-store" })).text();
-      if (last !== undefined && v !== last) location.reload();
-      last = v;
-    } catch { /* server restarting */ }
-  }, 1000);
 }

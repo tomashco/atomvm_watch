@@ -11,7 +11,10 @@ defmodule M5EmuMix.MixProject do
     ]
   end
 
-  def application, do: [extra_applications: [:logger]]
+  def application do
+    # inets (httpc) is only used by the tests.
+    [extra_applications: [:logger] ++ if(Mix.env() == :test, do: [:inets], else: [])]
+  end
 
   defp deps do
     [

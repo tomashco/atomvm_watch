@@ -2,12 +2,14 @@ defmodule Mix.Tasks.M5.Emulate do
   use Mix.Task
   @shortdoc "Pack the app and open it in the atomvm_watch emulator, rebuilding on change"
   @moduledoc """
-  Runs `mix atomvm.packbeam`, serves the emulator page with the headers AtomVM needs, opens the
-  browser, and re-packs when files under lib/ change. The page polls `/__version` and reloads.
+  Compiles and packs the app with `mix atomvm.packbeam`, serves the emulator page with the headers
+  AtomVM needs, opens the browser, and rebuilds when files under lib/ change. The page polls
+  `/__version` (a counter bumped after each successful pack) and reloads.
 
       mix m5.emulate [--port 4174] [--web-dir path/to/web/dist] [--no-open]
 
-  Set `M5_EMU_NO_OPEN=1` to never launch a browser.
+  Set `M5_EMU_NO_OPEN=1` to never launch a browser. A failed rebuild is reported and the previous
+  app keeps being served.
   """
   @impl true
   def run(args) do
@@ -19,47 +21,68 @@ defmodule Mix.Tasks.M5.Emulate do
     unless File.exists?(Path.join(web_dir, "index.html")),
       do: Mix.raise("emulator page not found in #{web_dir}; run scripts/build-web.sh or pass --web-dir")
 
-    avm = pack!()
-    {:ok, pid} = M5EmuMix.Server.start(port: opts[:port] || 4174, web_dir: web_dir, avm: avm)
+    served = Path.join(Mix.Project.build_path(), "m5_emu/app.avm")
+    version = M5EmuMix.Version.new()
+
+    case M5EmuMix.Builder.rebuild(served, version) do
+      :ok -> :ok
+      {:error, msg} -> Mix.raise("initial build failed: #{msg}")
+    end
+
+    {:ok, pid} = M5EmuMix.Server.start(port: opts[:port] || 4174, web_dir: web_dir, avm: served, version: version)
     port = M5EmuMix.Server.port(pid)
-    url = "http://localhost:#{port}/?dev=1&avm=http://localhost:#{port}/app.avm"
+    url = "http://127.0.0.1:#{port}/?dev=1&avm=http://127.0.0.1:#{port}/app.avm"
     Mix.shell().info("emulator at #{url}")
 
     if Keyword.get(opts, :open, true) and System.get_env("M5_EMU_NO_OPEN") in [nil, "", "0"],
-      do: System.cmd(open_cmd(), [url])
+      do: open(url)
 
-    watch_loop(mtimes())
+    loop(mtimes(), served, version)
   end
 
-  defp pack! do
-    Mix.Task.rerun("atomvm.packbeam")
-    Path.join(File.cwd!(), "#{Mix.Project.config()[:app]}.avm")
+  defp mtimes do
+    Path.wildcard("lib/**/*.{ex,erl}")
+    |> Enum.flat_map(fn f ->
+      # An editor's atomic save can remove the file between wildcard and stat.
+      case File.stat(f, time: :posix) do
+        {:ok, s} -> [{f, {s.mtime, s.size}}]
+        _ -> []
+      end
+    end)
+    |> Map.new()
   end
 
-  defp mtimes, do: Path.wildcard("lib/**/*.{ex,erl}") |> Map.new(&{&1, File.stat!(&1).mtime})
-
-  defp watch_loop(seen) do
+  defp loop(seen, served, version) do
     Process.sleep(500)
     now = mtimes()
 
     if now != seen do
       Mix.shell().info("change detected, repacking...")
 
-      try do
-        pack!()
-      rescue
-        e -> Mix.shell().error(Exception.message(e))
+      case M5EmuMix.Builder.rebuild(served, version) do
+        :ok -> Mix.shell().info("repacked")
+        {:error, msg} -> Mix.shell().error("build failed (keeping the previous app): #{msg}")
       end
     end
 
-    watch_loop(now)
+    loop(now, served, version)
   end
 
-  defp open_cmd do
-    case :os.type() do
-      {:unix, :darwin} -> "open"
-      {:unix, _} -> "xdg-open"
-      _ -> "start"
+  defp open(url) do
+    {cmd, args} =
+      case :os.type() do
+        {:unix, :darwin} -> {"open", [url]}
+        {:unix, _} -> {"xdg-open", [url]}
+        _ -> {"cmd", ["/c", "start", "", url]}
+      end
+
+    try do
+      case System.cmd(cmd, args, stderr_to_stdout: true) do
+        {_, 0} -> :ok
+        _ -> Mix.shell().info("could not open a browser; open #{url}")
+      end
+    rescue
+      _ -> Mix.shell().info("could not open a browser; open #{url}")
     end
   end
 end
