@@ -50,6 +50,6 @@ mix atomvm.esp32.flash --port /dev/cu.usbserial-*
 | `examples/clock/` | Reference Elixir app |
 | `boards/` | Board profiles: screen, buttons, device image, firmware manifest (first: `m5stickc_plus2`) |
 | `firmware/` | Partition tables and CI workflow for the ESP32 runtime images |
-| `docs/` | Specs and plans |
+| `docs/` | Specs and plans (`superpowers/`), overview docs (`overview/`) |
 
 Tasks are wired up as milestone 1 lands; `mise.toml` is the single source of truth for them.

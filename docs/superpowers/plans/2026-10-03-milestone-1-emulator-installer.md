@@ -2489,7 +2489,7 @@ CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-elixir.csv"
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 ```
-PSRAM stays off in milestone 1 (M5Unified does not need it; AtomVM's own images have it off). The spec's "PSRAM on" line is amended by this task.
+PSRAM stays off in milestone 1 (M5Unified does not need it; AtomVM's own images have it off).
 
 `firmware/m5stickc_plus2/patches/0001-get_board-stick_cplus2.patch` (unified diff against `nifs/atomvm_m5.cc` at the pinned commit; the `#else` branch is the plain ESP32 one):
 ```diff
@@ -2981,7 +2981,7 @@ git commit -m "feat(mix): mix m5.emulate dev loop"
 
 **Files:**
 - Create: `.github/workflows/ci.yml`, `.github/workflows/pages.yml`, `firmware/m5stickc_plus2/README.md`, `docs/device-checklist.md`
-- Modify: `README.md`, `docs/superpowers/specs/2026-10-03-atomvm-watch-design.md` (two amendments)
+- Modify: `README.md`
 
 - [ ] **Step 1: CI**
 
@@ -3035,8 +3035,6 @@ jobs:
 `firmware/m5stickc_plus2/README.md`: what the image contains, the partition table, the upstream `get_board` PR link, measured throughput numbers.
 `README.md`: replace the "Tasks are wired up as milestone 1 lands" line with the Pages URL and a three-step quick start (open the page, drop `clock.avm` from the latest release, Install runtime then Install app).
 
-Spec amendments (section 5 and section 6): the wasm binaries are fetched by `scripts/fetch-atomvm.sh` and verified by sha256 instead of being committed; PSRAM is off in milestone 1.
-
 - [ ] **Step 4: Verify and commit**
 
 Run: `mise run test` locally (everything green), push, confirm `ci` and `pages` workflows pass and the Pages URL loads the emulator with the clock fixture via `?avm=./fixtures/clock.avm`.
@@ -3051,5 +3049,5 @@ git commit -m "ci: test workflow, GitHub Pages deploy, device checklist"
 ## Self-review notes
 
 - Spec coverage: §3 deliverables → Tasks 1, 3–9 (m5_emu, web), 10 (firmware), 12 (mix), 11 (example); §4.1 module surface → Tasks 3–5 plus the drift test; §4.3 protocol → Tasks 3 and 7; §5 page files → Tasks 1, 7, 8, 9; §6 → Task 10; §7 → Tasks 11, 12; §8 testing → each task plus Task 11 e2e and the device checklist; §9 error handling → Task 8 (VM exit, bad `.avm`), Task 9 (installer errors), Task 5 (`{error, unsupported}`); §12 risks → Task 6 (shadowing, throughput), Task 11 (fonts vs photos is manual, listed in the checklist), Task 13 (Pages smoke).
-- Deviations from the spec, both recorded in Task 13: wasm binaries fetched not committed; PSRAM off.
+- The spec already reflects the two decisions made while planning: wasm binaries fetched not committed; PSRAM off.
 - Known soft spot: blob URL loading inside the pthread worker (Task 8) has a documented fallback and is exercised by the Task 11 e2e test before anything depends on it.

@@ -190,7 +190,7 @@ Vite project, plain TypeScript, no framework. Files:
 - `src/loader.ts`: drag-and-drop, file picker and `?avm=<url>` loading; keeps the last app in
   IndexedDB so a reload restarts it.
 - `src/installer.ts`: Web Serial via `esptool-js`. Two buttons: **Install runtime** writes the
-  full image from `firmware/` releases at offset 0; **Install app** writes the loaded `.avm` at
+  full image from `firmware/` releases at `0x1000`; **Install app** writes the loaded `.avm` at
   `0x250000`. Progress and the device's serial log go to the console pane. Hidden when the
   browser lacks `navigator.serial`.
 
