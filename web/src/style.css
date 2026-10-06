@@ -12,8 +12,10 @@ main { display: flex; flex-wrap: wrap; gap: 1.5rem; padding: 1.25rem; align-item
 .stage { position: relative; }
 .frame { position: absolute; background: no-repeat center / 100% 100%; min-width: 135px; min-height: 240px; transition: transform 0.2s ease; }
 .frame canvas { position: absolute; image-rendering: pixelated; background: #000; }
-.led { position: absolute; top: 12px; right: 18%; width: 10px; height: 10px; border-radius: 50%; background: #400; }
-.led.on { background: #f00; box-shadow: 0 0 8px #f00; }
+/* Red LED: an unlit grey lens when off, bright red with a glow when the app turns it on. */
+.led { position: absolute; top: 12px; right: 16%; width: 14px; height: 14px; border-radius: 50%;
+  background: #5a5a5a; border: 2px solid #3a3a3a; transition: background 0.1s, box-shadow 0.1s; }
+.led.on { background: #ff1a1a; border-color: #b00000; box-shadow: 0 0 6px 2px #ff1a1a, 0 0 18px 6px rgba(255, 26, 26, 0.6); }
 .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: center; }
 .buttons { display: flex; gap: 0.5rem; }
 .battery { display: flex; align-items: center; gap: 0.4rem; color: var(--muted); }
