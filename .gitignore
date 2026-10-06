@@ -19,5 +19,7 @@ m5_emu_mix/priv/web/
 **/deps/
 *.avm
 !web/e2e/fixtures/*.avm
+firmware/.work/
+firmware/out/
 web/test-results/
 web/playwright-report/

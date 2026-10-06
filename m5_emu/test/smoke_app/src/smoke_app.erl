@@ -35,7 +35,8 @@ start() ->
     m5_display:print(Ctl),
 
     %% Ask the harness to press A, then observe it through the normal polling API.
-    emscripten:run_script(<<"m5emu.pressA()">>, [main_thread, async]),
+    %% catch: emscripten:run_script/2 is undef on a real ESP32, so the app still runs on the device.
+    catch emscripten:run_script(<<"m5emu.pressA()">>, [main_thread, async]),
     io:format("SMOKE a_was_pressed ~p~n", [poll_pressed(100)]),
     io:format("SMOKE a_pressed ~p~n", [m5_btn_a:is_pressed()]),
 

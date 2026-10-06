@@ -1,0 +1,11 @@
+diff --git a/nifs/atomvm_m5.cc b/nifs/atomvm_m5.cc
+index 9d6cd38..27b6c08 100644
+--- a/nifs/atomvm_m5.cc
++++ b/nifs/atomvm_m5.cc
+@@ -91,4 +91,6 @@ static term nif_get_board(Context* ctx, int argc, term argv[])
+     case m5::board_t::board_M5StickCPlus:
+         return MAKE_ATOM(ctx, "\xB", "stick_cplus");
++    case m5::board_t::board_M5StickCPlus2:
++        return MAKE_ATOM(ctx, "\xC", "stick_cplus2");
+     case m5::board_t::board_M5StackCoreInk:
+         return MAKE_ATOM(ctx, "\x8", "core_ink");
