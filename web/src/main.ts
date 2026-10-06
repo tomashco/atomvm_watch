@@ -50,7 +50,11 @@ view.present();
 const buzzer = new Buzzer();
 const led = $("led");
 led.hidden = !profile.peripherals.led;
+// Every peripheral event the app emitted ({tone,..}, {led,..}), in order. Read-only record for
+// the end-to-end test (window.m5emu.events); audio itself is not observable from Playwright.
+const events: Array<{ name: string; args: unknown[] }> = [];
 renderer.onEvent = (name, a) => {
+  events.push({ name, args: [...a] });
   if (name === "tone" && profile.peripherals.speaker) buzzer.tone(Number(a[0]), Number(a[1]), Number(a[2]));
   else if (name === "stop_tone") buzzer.stop();
   else if (name === "led") led.classList.toggle("on", a[0] === "on");
@@ -73,6 +77,7 @@ let dirty = true;
 (window as unknown as { m5emu: unknown }).m5emu = {
   exec(cmds: Command[]) { renderer.exec(cmds); dirty = true; },
   boardReady() { boardRequested = true; boardSent = false; sendBoard(); },
+  events,
 };
 requestAnimationFrame(function tick() {
   if (dirty) { view.present(); dirty = false; }

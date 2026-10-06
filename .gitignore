@@ -23,3 +23,4 @@ firmware/.work/
 firmware/out/
 web/test-results/
 web/playwright-report/
+web/public/fixtures/

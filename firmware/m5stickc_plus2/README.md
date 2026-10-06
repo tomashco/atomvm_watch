@@ -38,3 +38,14 @@ black, check `AVM_M5_DISPLAY_ENABLE=y` in `idf.py menuconfig` and the M5GFX auto
 
 Throughput on real hardware (fill in after the first device run): `fill_rect_1000_ms` TBD,
 `batched_1000_ms` TBD.
+
+## Device check with the clock example (manual, needs the watch on USB)
+
+1. `cd examples/clock && mix atomvm.esp32.flash --port /dev/cu.usbserial-*`.
+2. Confirm the three screens cycle on A (clock, buttons, about with `board: stick_cplus2`), B
+   beeps and toggles the red LED, and holding Power blanks the screen until release.
+3. Install the same `clock.avm` through the web page ("Install app") and time it (target: under
+   five seconds).
+
+Results (fill in after the first device run): screens TBD, beep/LED TBD, sleep/wake TBD,
+web install time TBD.

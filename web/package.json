@@ -6,15 +6,18 @@
   "scripts": {
     "sync-boards": "rm -rf public/boards && mkdir -p public && cp -R ../boards public/boards",
     "predev": "pnpm run sync-boards",
-    "prebuild": "pnpm run sync-boards",
+    "sync-fixtures": "mkdir -p public/fixtures && cp e2e/fixtures/*.avm public/fixtures/",
+    "prebuild": "pnpm run sync-boards && pnpm run sync-fixtures",
     "pretest": "pnpm run sync-boards",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "e2e": "playwright test",
     "postinstall": "cp node_modules/coi-serviceworker/coi-serviceworker.js public/"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.4",
     "@types/pngjs": "^6.0.5",
     "ajv": "^8.20.0",
