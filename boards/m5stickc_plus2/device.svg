@@ -8,5 +8,5 @@
   <rect width="200" height="400" rx="24" fill="#f36b21" mask="url(#window)"/>
   <circle id="btn-a" cx="67" cy="300" r="14" fill="#fff"/>
   <circle id="btn-b" cx="150" cy="160" r="10" fill="#fff"/>
-  <circle id="btn-pwr" cx="-15" cy="160" r="10" fill="#fff"/>
+  <circle id="btn-pwr" cx="8" cy="160" r="10" fill="#fff"/>
 </svg>

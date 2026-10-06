@@ -14,8 +14,6 @@ in
     pkgs.cmake
     pkgs.gperf
     pkgs.ninja
-    pkgs.curl
-    pkgs.zlib
   ];
 
   # Pinned versions (ATOMVM_VERSION, ATOMVM_M5_COMMIT) live in versions.env, the single source.

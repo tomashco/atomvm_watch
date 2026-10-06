@@ -21,10 +21,10 @@ if [ ! -d "$SRC/.git" ] || [ "$(git -C "$SRC" describe --tags --exact-match 2>/d
 fi
 
 cmake -S "$SRC" -B "$SRC/build-libs" -G Ninja -DAVM_DISABLE_JIT=ON -DAVM_BUILD_RUNTIME_ONLY=ON >/dev/null
-cmake --build "$SRC/build-libs" --target atomvmlib
+cmake --build "$SRC/build-libs" --target atomvmlib-emscripten
 
 mkdir -p "$(dirname "$OUT_WEB")" "$(dirname "$OUT_VENDOR")"
-cp "$SRC/build-libs/libs/atomvmlib.avm" "$OUT_WEB"
-cp "$SRC/build-libs/libs/atomvmlib.avm" "$OUT_VENDOR"
+cp "$SRC/build-libs/libs/atomvmlib-emscripten.avm" "$OUT_WEB"
+cp "$SRC/build-libs/libs/atomvmlib-emscripten.avm" "$OUT_VENDOR"
 echo "$ATOMVM_VERSION" > "$STAMP"
 echo "atomvmlib.avm ${ATOMVM_VERSION} ready ($(wc -c < "$OUT_WEB" | tr -d ' ') bytes)"
