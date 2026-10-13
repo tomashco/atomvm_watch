@@ -65,4 +65,5 @@ device).
    five seconds).
 
 Results (2026-10-13, CI firmware from `8c1fced`, clock flashed with esptool): screens pass,
-beep/LED pass, sleep/wake pass, runs on battery. Web install time not measured yet.
+beep/LED pass, sleep/wake pass, runs on battery. Web "Install app" from `dev` works and the
+watch restarts into the clock; install time not measured yet.

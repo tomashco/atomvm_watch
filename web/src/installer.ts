@@ -49,7 +49,15 @@ export function esptoolFlasher(log: Log): Flasher {
             },
           });
         },
-        async reset() { await loader.after("hard_reset"); },
+        // esptool-js 0.7.0's after("hard_reset") only drops RTS, which is already low after
+        // connecting, so the chip stays in the flasher. Pulse it like Python esptool: RTS high
+        // pulls EN low (DTR low keeps IO0 high, so it boots the app).
+        async reset() {
+          await transport.setDTR(false);
+          await transport.setRTS(true);
+          await new Promise((r) => setTimeout(r, 100));
+          await transport.setRTS(false);
+        },
         async close() { await transport.disconnect(); },
       };
     },

@@ -27,5 +27,5 @@ Needs the watch on USB and a Chrome or Edge browser. Record results in
 - [ ] Click **Connect**, then **Install runtime** (needs a mirrored firmware release on the site) and,
       on the same serial connection, **Install app**; progress and
       the serial log appear in the console pane and the watch boots the clock.
-- [ ] **Connect** then **Install app** alone (runtime already present) finishes in under five seconds. Time: ____ s.
+- [x] **Connect** then **Install app** alone (from `dev`, 2026-10-13: works, time not measured) (runtime already present) finishes in under five seconds. Time: ____ s.
 - [ ] Unplugging mid-install shows an error in the console pane and leaves the page usable.
