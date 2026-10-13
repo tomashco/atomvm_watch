@@ -6,9 +6,15 @@ AtomVM (`ATOMVM_VERSION` in `versions.env`) plus the `atomvm_m5` ESP-IDF compone
 | File | Purpose |
 | --- | --- |
 | `partitions.csv` | 8 MB table. `boot.avm` at 0x1D0000, `main.avm` at 0x250000 (the installer's `appOffset`). Checked by `firmware/check_partitions.py`. |
-| `sdkconfig.m5stickc_plus2` | sdkconfig overrides: 8 MB flash, custom table. PSRAM stays off. |
+| `sdkconfig.m5stickc_plus2` | sdkconfig overrides: 8 MB flash, custom table, I2C legacy conflict check skipped (see below). PSRAM stays off. |
 | `patches/0001-get_board-stick_cplus2.patch` | Makes `m5:get_board/0` return `stick_cplus2` on this board. |
 | `manifest.template.json` | Template for the web installer's `FirmwareManifest`. Image at 0x1000. |
+
+Two I2C drivers are linked: AtomVM's `i2c` (legacy IDF driver) and M5GFX/M5Unified (the new
+`i2c_master` driver). ESP-IDF 5.5 aborts at boot when both are present
+(`i2c: CONFLICT! driver_ng is not allowed to be used with this old driver`), so the sdkconfig sets
+`CONFIG_I2C_SKIP_LEGACY_CONFLICT_CHECK=y`. They must not drive the same port: do not open Erlang
+`i2c` on the internal bus (RTC, power chip) that M5Unified owns.
 
 Upstream PR for the patch: not opened yet (open it against `pguyot/atomvm_m5` and put the URL here).
 
@@ -32,18 +38,22 @@ Tag firmware releases as full releases: `releases/latest` ignores prereleases.
 ## Flash from the terminal (to check before trusting the web installer)
 
 ```bash
-esptool --chip esp32 --port /dev/cu.usbserial-* --baud 921600 write-flash 0x1000 firmware/out/AtomVM-m5stickc_plus2-dev.img
-esptool --chip esp32 --port /dev/cu.usbserial-* write-flash 0x250000 m5_emu/test/smoke_app/_build/default/lib/smoke_app.avm
+esptool --chip esp32 --port /dev/cu.usbserial-* --baud 115200 write-flash 0x1000 firmware/out/AtomVM-m5stickc_plus2-dev.img
+esptool --chip esp32 --port /dev/cu.usbserial-* --baud 115200 write-flash 0x250000 m5_emu/test/smoke_app/_build/default/lib/smoke_app.avm
 screen /dev/cu.usbserial-* 115200
 ```
 
-Expected: AtomVM banner, then `SMOKE board stick_cplus2 135x240` (proves the patch), a red
-rectangle and "hello" on screen. `SMOKE a_pressed` is `false` on the device. If the display stays
+Use 115200 baud: on the watch's CH9102 adapter 921600 and 460800 failed intermittently ("Unable
+to verify flash chip connection", "Failed to enter compressed flash mode").
+
+Expected: AtomVM banner, then `SMOKE board stick_cplus2 135x240` (proves the patch). The smoke app
+then stops with `Failed load module: stub_pack_probe.beam`: its later checks are emulator-only, so
+on the device it proves only the boot and the `get_board` patch. If the display stays
 black, check `AVM_M5_DISPLAY_ENABLE=y` in `idf.py menuconfig` and the M5GFX autodetect log
 (`[Autodetect] M5StickCPlus2`).
 
-Throughput on real hardware (fill in after the first device run): `fill_rect_1000_ms` TBD,
-`batched_1000_ms` TBD.
+Throughput on real hardware: not measured (the smoke app stops before its timing checks on the
+device).
 
 ## Device check with the clock example (manual, needs the watch on USB)
 
@@ -54,5 +64,6 @@ Throughput on real hardware (fill in after the first device run): `fill_rect_100
 3. Install the same `clock.avm` through the web page ("Install app") and time it (target: under
    five seconds).
 
-Results (fill in after the first device run): screens TBD, beep/LED TBD, sleep/wake TBD,
-web install time TBD.
+Results (2026-10-13, CI firmware from `8c1fced`, clock flashed with esptool): screens pass,
+beep/LED pass, sleep/wake pass, runs on battery. Web "Install app" from `dev` works and the
+watch restarts into the clock in under five seconds.
