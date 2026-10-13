@@ -52,7 +52,7 @@ served, so the button fails with "no runtime is published at this address yet". 
 image locally instead (build it with `firmware`, once per watch), then use **Install app** from `dev`:
 
 ```sh
-esptool --chip esp32 --port /dev/cu.usbserial-* --baud 921600 write-flash 0x1000 firmware/out/AtomVM-m5stickc_plus2-dev.img
+esptool --chip esp32 --port /dev/cu.usbserial-* --baud 115200 write-flash 0x1000 firmware/out/AtomVM-m5stickc_plus2-dev.img
 ```
 
 Terminal alternative for the app, from an exatomvm project:
