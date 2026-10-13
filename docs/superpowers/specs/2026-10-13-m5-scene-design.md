@@ -1,7 +1,7 @@
 # m5_scene — avm_scene scenes on m5_display, first board M5StickC Plus 2
 
 Date: 2026-10-13
-Status: draft, awaiting review
+Status: approved 2026-10-13; section 4 shapes updated to upstream AtomGL `4a4065a` while planning
 Branch: `m5-scene` (from `milestone-1`)
 
 ## 1. Goal
@@ -30,7 +30,7 @@ reasoning in scenes and state instead of imperative drawing, and alignment with 
   `{input_event, Pid, Timestamp, Event}`. Checked against `avm_scene` `aba9249` (2025-11-02),
   published on Hex.
 - **Moving to AtomGL later** means AtomGL firmware for the board and
-  `display_server: {port, Display}`. Scenes that use only AtomGL's four item types need no change.
+  `display_server: {port, Display}`. Scenes that use only AtomGL item types (no `m5_font*` fonts) need no change.
 - **`m5_display` stays available.** An app draws either through `m5_scene` or directly with
   `m5_display`, not both: both paint the same screen, and `m5_scene` assumes it owns it.
 - **Two `atomvm_m5` gaps are closed with an additive patch:** it has no text colour
@@ -58,9 +58,12 @@ reasoning in scenes and state instead of imperative drawing, and alignment with 
 - `m5_scene_display`: gen_server holding the last display list. `call(Pid, {update, List})` is what
   `avm_scene` invokes; it asks the renderer for a draw plan and runs it against `m5_display`.
 - `m5_scene_render`: pure functions, no side effects: item validation, bounding boxes, comparison
-  of the old and new lists, draw plan (a list of `m5_display` operations), RGBA to RGB565
-  conversion.
+  of the old and new lists, draw plan (a list of `m5_display` operations).
+- `m5_scene_image`: pure functions: RGBA to RGB565 conversion, blending, transparent runs, the
+  conversion cache.
 - `m5_scene_input`: gen_server that polls the buttons and sends input events to subscribers.
+- `m5_scene_m5` and `m5_scene_buttons`: the default display and button modules, thin wrappers with
+  static calls into `atomvm_m5` (`m5_display`, `m5:update/0`, `m5_btn_*`). Tests swap in fakes.
 
 ## 4. Display list
 
@@ -77,14 +80,19 @@ AtomGL item types (same tuples as upstream):
 | `{image, X, Y, Bg, {rgba8888, W, H, Pixels}}` | `Pixels` holds at least `W*H*4` bytes. |
 | `{scaled_cropped_image, X, Y, W, H, Bg, SrcX, SrcY, XScale, YScale, [], Image}` | Same validity rules as AtomGL. |
 
-Extension item types (not in AtomGL; real AtomGL skips them with a log line, so scenes that use
-them are not portable to AtomGL boards):
+AtomGL shape items (added upstream in `4a4065a`, same tuples; drawn with M5GFX's primitives, so
+edge pixels can differ slightly from AtomGL's midpoint rule):
 
 | Item | Notes |
 |------|-------|
-| `{round_rect, X, Y, W, H, Radius, Color}` | Filled. |
-| `{circle, CX, CY, R, Color}` | Filled. |
-| `{line, X1, Y1, X2, Y2, Color}` | One pixel wide. |
+| `{rounded_rect, X, Y, W, H, Radius, Color}` | Filled. Radius clamped to `(min(W, H) - 1) div 2`. |
+| `{circle, CX, CY, R, Color}` | Filled, `R > 0`. |
+| `{ellipse, CX, CY, RX, RY, Color}` | Filled, `RX, RY > 0`. |
+| `{line, X1, Y1, X2, Y2, Thickness, Color}` | `Thickness >= 1`. Thickness 1 is M5GFX's `drawLine`; thicker lines are approximated with two triangles, plus round caps from thickness 3. |
+
+`arc` and `polygon` are not supported: they are logged as `unsupported command` and skipped.
+Shape values must be within ±32767, as in AtomGL. Text with an opaque `Bg` is drawn as a filled
+background rectangle and then transparent text.
 
 ## 5. `atomvm_m5` patch
 
@@ -164,7 +172,7 @@ for `mix m5.emulate`):
 - Detail scene: the entry's name and a line drawing (circle, line); B goes back, A held for the
   hold threshold also goes back.
 
-Docs: a `m5_scene/README.md` with the item reference (AtomGL types and extension types marked),
+Docs: a `m5_scene/README.md` with the item reference (the `m5_font*` extension fonts and the unsupported `arc`/`polygon` marked),
 the `m5_scene` versus `m5_display` rule, the `m5:update()` ownership rule, the
 `click`/`double_click` ordering and the font size difference from AtomGL. `docs/overview` gets a
 short section pointing to it, and the roadmap records "AtomGL firmware" as a later item.
