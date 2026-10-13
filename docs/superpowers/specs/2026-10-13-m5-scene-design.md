@@ -208,3 +208,4 @@ short section pointing to it, and the roadmap records "AtomGL firmware" as a lat
 | `push_image` RGB565 byte order differs between M5GFX and the emulator | A two-colour test image checked in the e2e test and on the device |
 | `avm_scene` from Hex fails to build or run under AtomVM 0.7.0-beta.0 | First task of the plan: a minimal scene that pushes one `rect` in the emulator |
 | Text bounding boxes differ from what M5GFX draws (UTF-8, wide glyphs) | Bounding boxes use M5GFX's own `font_width`/`font_height`; non-ASCII text gets a test |
+| Switching to real AtomGL later doesn't fit: the VM partition (0x10000 to 0x1D0000) had only about 110 KB free in the old v0.6.5 build | Out of scope here; before the AtomGL step, check the size of the built image and grow the VM partition, moving `main.avm` if needed |
