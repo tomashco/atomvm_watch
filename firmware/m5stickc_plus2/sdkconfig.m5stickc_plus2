@@ -4,3 +4,6 @@ CONFIG_ESPTOOLPY_FLASHSIZE="8MB"
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-elixir.csv"
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+# AtomVM's i2c driver uses the legacy IDF I2C driver, M5GFX the new one (i2c_master). IDF 5.5
+# aborts at boot when both are linked unless this check is skipped. They must not share a port.
+CONFIG_I2C_SKIP_LEGACY_CONFLICT_CHECK=y

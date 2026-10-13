@@ -6,9 +6,15 @@ AtomVM (`ATOMVM_VERSION` in `versions.env`) plus the `atomvm_m5` ESP-IDF compone
 | File | Purpose |
 | --- | --- |
 | `partitions.csv` | 8 MB table. `boot.avm` at 0x1D0000, `main.avm` at 0x250000 (the installer's `appOffset`). Checked by `firmware/check_partitions.py`. |
-| `sdkconfig.m5stickc_plus2` | sdkconfig overrides: 8 MB flash, custom table. PSRAM stays off. |
+| `sdkconfig.m5stickc_plus2` | sdkconfig overrides: 8 MB flash, custom table, I2C legacy conflict check skipped (see below). PSRAM stays off. |
 | `patches/0001-get_board-stick_cplus2.patch` | Makes `m5:get_board/0` return `stick_cplus2` on this board. |
 | `manifest.template.json` | Template for the web installer's `FirmwareManifest`. Image at 0x1000. |
+
+Two I2C drivers are linked: AtomVM's `i2c` (legacy IDF driver) and M5GFX/M5Unified (the new
+`i2c_master` driver). ESP-IDF 5.5 aborts at boot when both are present
+(`i2c: CONFLICT! driver_ng is not allowed to be used with this old driver`), so the sdkconfig sets
+`CONFIG_I2C_SKIP_LEGACY_CONFLICT_CHECK=y`. They must not drive the same port: do not open Erlang
+`i2c` on the internal bus (RTC, power chip) that M5Unified owns.
 
 Upstream PR for the patch: not opened yet (open it against `pguyot/atomvm_m5` and put the URL here).
 
