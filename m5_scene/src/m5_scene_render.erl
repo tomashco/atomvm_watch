@@ -1,7 +1,7 @@
 %% Pure functions behind m5_scene_display: display list validation and bounding boxes, and the
 %% draw plan (plan/4). No side effects, so everything here is tested on the host BEAM.
 -module(m5_scene_render).
--export([validate/1, bbox/1]).
+-export([validate/1, bbox/1, plan/4]).
 
 -define(MAXC, 32767).
 -define(LOG_MAX, 3).
@@ -220,3 +220,146 @@ bbox({line, X1, Y1, X2, Y2, T, _}) ->
 
 line_pad(1) -> 0;
 line_pad(T) -> (T - 1) div 2 + 1.
+
+%% The operations that turn the previous frame Old (validated items, or none before the first
+%% frame) into New on a W x H screen with background Bg. Returns {Ops, Cache1}: Ops is a list of
+%% {Function, Args} for the display module, Cache1 the image cache restricted to New's images.
+plan(Same, Same, _Screen, Cache) ->
+    {[], Cache};
+plan(Old, New, {W, H, Bg}, Cache) ->
+    Screen = {0, 0, W, H},
+    {Body, Cache1} =
+        case dirty(Old, New, Screen) of
+            full -> region(Screen, New, Bg, false, Cache);
+            Rects -> regions(Rects, New, Bg, Cache)
+        end,
+    Ops =
+        case Body of
+            [] -> [];
+            _ -> [{start_write, []}] ++ Body ++ [{end_write, []}]
+        end,
+    {Ops, m5_scene_image:retain(Cache1, [I || I <- New, m5_scene_image:is_image(I)])}.
+
+%% full, or the merged dirty rectangles: the boxes of the items added and removed, clipped to the
+%% screen. Same items in another order change the stacking everywhere, so that is full too.
+dirty(none, _New, _Screen) ->
+    full;
+dirty(Old, New, {_, _, W, H} = Screen) ->
+    case subtract(Old, New) ++ subtract(New, Old) of
+        [] ->
+            full;
+        Changed ->
+            Rects = merge([R || I <- Changed, R <- [clip(bbox(I), Screen)], R =/= empty]),
+            case area(Rects) * 2 > W * H of
+                true -> full;
+                false -> Rects
+            end
+    end.
+
+regions(Rects, Items, Bg, Cache) ->
+    lists:foldl(
+        fun(R, {Ops, C}) ->
+            {Ops1, C1} = region(R, Items, Bg, true, C),
+            {Ops ++ Ops1, C1}
+        end, {[], Cache}, Rects).
+
+%% One redraw region: fill it with the background, then draw the items that overlap it from last
+%% to first, so the first item ends on top. Clip is true for a dirty rectangle.
+region({X, Y, W, H} = R, Items, Bg, Clip, Cache) ->
+    {Draw, Cache1} = draw_all([I || I <- lists:reverse(Items), overlaps(bbox(I), R)], Cache),
+    Fill = [{fill_rect, [X, Y, W, H, Bg]}],
+    case Clip of
+        true -> {[{set_clip_rect, [X, Y, W, H]}] ++ Fill ++ Draw ++ [{clear_clip_rect, []}], Cache1};
+        false -> {Fill ++ Draw, Cache1}
+    end.
+
+draw_all(Items, Cache) ->
+    lists:foldl(
+        fun(I, {Ops, C}) ->
+            {Ops1, C1} = draw(I, C),
+            {Ops ++ Ops1, C1}
+        end, {[], Cache}, Items).
+
+draw({rect, X, Y, W, H, C}, Cache) ->
+    {[{fill_rect, [X, Y, W, H, C]}], Cache};
+draw({text, X, Y, S, Fg, Bg, Bin, N}, Cache) ->
+    Box = case Bg of
+              transparent -> [];
+              _ -> [{fill_rect, [X, Y, N * 6 * S, 8 * S, Bg]}]
+          end,
+    %% The same colour twice is M5GFX's transparent text background.
+    {Box ++ [{set_text_size, [S]}, {set_text_color, [Fg, Fg]}, {draw_string, [Bin, X, Y]}], Cache};
+draw({rounded_rect, X, Y, W, H, R, C}, Cache) ->
+    {[{fill_round_rect, [X, Y, W, H, R, C]}], Cache};
+draw({circle, CX, CY, R, C}, Cache) ->
+    {[{fill_circle, [CX, CY, R, C]}], Cache};
+draw({ellipse, CX, CY, RX, RY, C}, Cache) ->
+    {[{fill_ellipse, [CX, CY, RX, RY, C]}], Cache};
+draw({line, X1, Y1, X2, Y2, 1, C}, Cache) ->
+    {[{draw_line, [X1, Y1, X2, Y2, C]}], Cache};
+draw({line, X1, Y1, X2, Y2, T, C}, Cache) ->
+    {thick_line(X1, Y1, X2, Y2, T, C), Cache};
+draw(Image, Cache) ->
+    m5_scene_image:ops(Image, Cache).
+
+%% M5GFX in atomvm_m5 has no wide line: approximate with a quad of two triangles, offset by half
+%% the thickness across the line, plus round caps from thickness 3.
+thick_line(X, Y, X, Y, T, C) ->
+    [{fill_circle, [X, Y, (T - 1) div 2, C]}];
+thick_line(X1, Y1, X2, Y2, T, C) ->
+    DX = X2 - X1,
+    DY = Y2 - Y1,
+    Len = math:sqrt(DX * DX + DY * DY),
+    Half = (T - 1) / 2,
+    OX = round(-DY * Half / Len),
+    OY = round(DX * Half / Len),
+    Quad = [{fill_triangle, [X1 + OX, Y1 + OY, X2 + OX, Y2 + OY, X2 - OX, Y2 - OY, C]},
+            {fill_triangle, [X1 + OX, Y1 + OY, X2 - OX, Y2 - OY, X1 - OX, Y1 - OY, C]}],
+    case T >= 3 of
+        true -> Quad ++ [{fill_circle, [X1, Y1, (T - 1) div 2, C]}, {fill_circle, [X2, Y2, (T - 1) div 2, C]}];
+        false -> Quad
+    end.
+
+clip({X, Y, W, H}, {SX, SY, SW, SH}) ->
+    X0 = max(X, SX), Y0 = max(Y, SY),
+    X1 = min(X + W, SX + SW), Y1 = min(Y + H, SY + SH),
+    case X1 > X0 andalso Y1 > Y0 of
+        true -> {X0, Y0, X1 - X0, Y1 - Y0};
+        false -> empty
+    end.
+
+overlaps({X1, Y1, W1, H1}, {X2, Y2, W2, H2}) ->
+    W1 > 0 andalso H1 > 0 andalso X1 < X2 + W2 andalso X2 < X1 + W1
+        andalso Y1 < Y2 + H2 andalso Y2 < Y1 + H1.
+
+%% Merges overlapping rectangles into their bounding union until none overlap.
+merge(Rects) -> merge(Rects, []).
+
+merge([], Acc) ->
+    lists:reverse(Acc);
+merge([R | Rest], Acc) ->
+    case take_overlapping(R, lists:reverse(Acc) ++ Rest, []) of
+        none -> merge(Rest, [R | Acc]);
+        {Other, Remaining} -> merge([union(R, Other) | Remaining], [])
+    end.
+
+take_overlapping(_R, [], _Seen) -> none;
+take_overlapping(R, [O | Rest], Seen) ->
+    case overlaps(R, O) of
+        true -> {O, lists:reverse(Seen) ++ Rest};
+        false -> take_overlapping(R, Rest, [O | Seen])
+    end.
+
+union({X1, Y1, W1, H1}, {X2, Y2, W2, H2}) ->
+    X = min(X1, X2), Y = min(Y1, Y2),
+    {X, Y, max(X1 + W1, X2 + W2) - X, max(Y1 + H1, Y2 + H2) - Y}.
+
+area(Rects) -> lists:foldl(fun({_, _, W, H}, A) -> A + W * H end, 0, Rects).
+
+%% L minus one occurrence of each element of R (multiset difference; no -- on AtomVM).
+subtract(L, []) -> L;
+subtract(L, [X | Xs]) -> subtract(delete(X, L), Xs).
+
+delete(_X, []) -> [];
+delete(X, [X | T]) -> T;
+delete(X, [H | T]) -> [H | delete(X, T)].
