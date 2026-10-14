@@ -65,6 +65,14 @@ reordered_list_is_full_redraw_test() ->
                   {end_write, []}],
                  next([B, A], [A, B])).
 
+reorder_with_another_change_is_full_redraw_test() ->
+    %% A and B overlap and swap stacking order while X, elsewhere, changes colour: redrawing only
+    %% X's box would leave A on top of B.
+    A = {rect, 0, 0, 10, 10, 1},
+    B = {rect, 5, 5, 10, 10, 2},
+    ?assertMatch([{start_write, []}, {fill_rect, [0, 0, 240, 135, 0]} | _],
+                 next([A, B, {rect, 200, 0, 10, 10, 3}], [B, A, {rect, 200, 0, 10, 10, 4}])).
+
 offscreen_change_draws_nothing_test() ->
     ?assertEqual([], next([{rect, 300, 0, 5, 5, 1}], [{rect, 400, 0, 5, 5, 1}])).
 

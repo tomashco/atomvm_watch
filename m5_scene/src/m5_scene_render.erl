@@ -241,14 +241,18 @@ plan(Old, New, {W, H, Bg}, Cache) ->
     {Ops, m5_scene_image:retain(Cache1, [I || I <- New, m5_scene_image:is_image(I)])}.
 
 %% full, or the merged dirty rectangles: the boxes of the items added and removed, clipped to the
-%% screen. Same items in another order change the stacking everywhere, so that is full too.
+%% screen. Items kept from Old in another order change the stacking everywhere, so that is full too,
+%% also when other items changed in the same frame.
 dirty(none, _New, _Screen) ->
     full;
 dirty(Old, New, {_, _, W, H} = Screen) ->
-    case subtract(Old, New) ++ subtract(New, Old) of
-        [] ->
+    Removed = subtract(Old, New),
+    Added = subtract(New, Old),
+    case subtract(Old, Removed) =:= subtract(New, Added) of
+        false ->
             full;
-        Changed ->
+        true ->
+            Changed = Removed ++ Added,
             Rects = merge([R || I <- Changed, R <- [clip(bbox(I), Screen)], R =/= empty]),
             case area(Rects) * 2 > W * H of
                 true -> full;
