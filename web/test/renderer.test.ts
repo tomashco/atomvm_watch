@@ -145,4 +145,41 @@ describe("M5Renderer", () => {
     r.exec([["set_text_size", 1.5, 1.5], ["set_cursor", 0, 0], ["print", "ab"], ["println"]]);
     expect(r.cursor).toEqual({ x: 0, y: 16 });
   });
+  it("clip rect limits drawing until cleared", () => {
+    const r = mk();
+    r.exec([["set_clip_rect", 10, 10, 5, 5], ["fill_rect", 0, 0, 50, 50, 0xff0000]]);
+    expect(r.fb.getPixel(10, 10)).toBe(0xff0000);
+    expect(r.fb.getPixel(14, 14)).toBe(0xff0000);
+    expect(r.fb.getPixel(15, 15)).toBe(0x000000);
+    expect(r.fb.getPixel(9, 9)).toBe(0x000000);
+    r.exec([["clear_clip_rect"], ["fill_rect", 0, 0, 2, 2, 0x00ff00]]);
+    expect(r.fb.getPixel(0, 0)).toBe(0x00ff00);
+  });
+  it("clip rect is in logical coordinates", () => {
+    const r = mk();
+    r.exec([["set_rotation", 1], ["set_clip_rect", 0, 0, 1, 1], ["fill_screen", 0x0000ff]]);
+    // Logical (0, 0) at rotation 1 is native (134, 0).
+    expect(r.fb.getPixel(134, 0)).toBe(0x0000ff);
+    expect(r.fb.getPixel(133, 0)).toBe(0x000000);
+  });
+  it("text uses the text colours, transparent when they are equal", () => {
+    const r = mk();
+    r.exec([["fill_rect", 0, 0, 20, 20, 0x00ff00], ["set_text_color", 0xff0000, 0x0000ff], ["draw_string", " ", 0, 0]]);
+    expect(r.fb.getPixel(0, 0)).toBe(0x0000ff); // a space is all background
+    r.exec([["set_text_color", 0xff0000, 0xff0000], ["draw_string", " ", 6, 0]]);
+    expect(r.fb.getPixel(6, 0)).toBe(0x00ff00); // transparent: the green below shows
+  });
+  it("push_image draws big-endian RGB565", () => {
+    const r = mk();
+    // Red F800, green 07E0 (a swapped byte order would give other colours).
+    r.exec([["push_image", 3, 4, 2, 1, Buffer.from([0xf8, 0x00, 0x07, 0xe0]).toString("base64")]]);
+    expect(r.fb.getPixel(3, 4)).toBe(0xff0000);
+    expect(r.fb.getPixel(4, 4)).toBe(0x00ff00);
+  });
+  it("push_image with too few bytes or a bad payload is skipped", () => {
+    const r = mk();
+    expect(() => r.exec([["push_image", 0, 0, 2, 2, Buffer.from([0xff, 0xff]).toString("base64")]])).not.toThrow();
+    expect(() => r.exec([["push_image", 0, 0, 1, 1, 42]])).not.toThrow();
+    expect(r.fb.getPixel(0, 0)).toBe(0x000000);
+  });
 });

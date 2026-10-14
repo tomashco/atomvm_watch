@@ -2,12 +2,12 @@ import { Framebuffer } from "./framebuffer";
 import { FONT0, GLYPH_W, CELL_W, CELL_H } from "./font0";
 import type { Command } from "./protocol";
 
-const TEXT_FG = 0xffffff, TEXT_BG = 0x000000;
-
 export class M5Renderer {
   readonly fb: Framebuffer;
   rotation = 0; cursor = { x: 0, y: 0 }; textSize = { x: 1, y: 1 };
   color = 0xffffff; baseColor = 0; sleeping = false; brightness = 128;
+  textFg = 0xffffff; textBg = 0x000000;
+  clip: { x: number; y: number; w: number; h: number } | null = null;
   onEvent?: (name: string, args: (number | string)[]) => void;
   private warned = new Set<string>();
   constructor(private nativeW: number, private nativeH: number) { this.fb = new Framebuffer(nativeW, nativeH); }
@@ -17,6 +17,8 @@ export class M5Renderer {
 
   // Logical -> native, M5GFX rotation convention (clockwise quarter turns).
   private plot(x: number, y: number, c: number) {
+    const k = this.clip;
+    if (k && (x < k.x || y < k.y || x >= k.x + k.w || y >= k.y + k.h)) return;
     const W = this.nativeW, H = this.nativeH;
     switch (this.rotation & 3) {
       case 0: this.fb.setPixel(x, y, c); break;
@@ -115,7 +117,8 @@ export class M5Renderer {
         const on = known
           ? row < 7 && ((bits >> row) & 1) === 1
           : col < GLYPH_W && row < 7 && (col === 0 || col === GLYPH_W - 1 || row === 0 || row === 6);
-        this.fillRect(x + col * sx, y + row * sy, sx, sy, on ? TEXT_FG : TEXT_BG);
+        if (on) this.fillRect(x + col * sx, y + row * sy, sx, sy, this.textFg);
+        else if (this.textFg !== this.textBg) this.fillRect(x + col * sx, y + row * sy, sx, sy, this.textBg); // equal colours: transparent, as in M5GFX
       }
     }
   }
@@ -135,6 +138,18 @@ export class M5Renderer {
       this.cursor = { x: this.cursor.x + cw, y: this.cursor.y };
     }
   }
+  // Big-endian RGB565 from base64, expanded to RGB888 by bit replication (like to_rgb888/1 in m5_emu_cmd).
+  private pushImage(x: number, y: number, w: number, h: number, b64: string) {
+    if (w <= 0 || h <= 0) return;
+    let bytes: Uint8Array;
+    try { bytes = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0)); } catch { this.bad("push_image"); return; }
+    if (bytes.length < w * h * 2) { this.bad("push_image"); return; }
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      const k = (j * w + i) * 2, v = (bytes[k] << 8) | bytes[k + 1];
+      const r5 = v >> 11, g6 = (v >> 5) & 0x3f, b5 = v & 0x1f;
+      this.plot(x + i, y + j, (((r5 << 3) | (r5 >> 2)) << 16) | (((g6 << 2) | (g6 >> 4)) << 8) | ((b5 << 3) | (b5 >> 2)));
+    }
+  }
 
   // M5GFX takes int32 coordinates: truncate numeric args once. Returns null (and warns once) for a
   // malformed command: non-finite numbers, or a string/number in the wrong place.
@@ -144,6 +159,11 @@ export class M5Renderer {
     if (name === "set_text_size") {
       const f = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(1, Math.round(v)) : 1);
       return [name, f(a[0]), f(a[1])];
+    }
+    if (name === "push_image") {
+      const nums = a.slice(0, 4);
+      if (nums.length !== 4 || !nums.every((v) => typeof v === "number" && Number.isFinite(v)) || typeof a[4] !== "string") return this.bad(name);
+      return [name, ...nums.map((v) => Math.trunc(v as number)), a[4]];
     }
     const strFirst = name === "print" || name === "draw_string" || name === "draw_center_string" || name === "draw_right_string";
     const out: (number | string)[] = [];
@@ -197,6 +217,10 @@ export class M5Renderer {
         case "sleep": this.sleeping = true; break;
         case "wakeup": this.sleeping = false; break;
         case "tone": case "stop_tone": case "led": case "play_raw": this.onEvent?.(name, a); break;
+        case "set_text_color": this.textFg = n[0]; this.textBg = n[1]; break;
+        case "set_clip_rect": this.clip = { x: n[0], y: n[1], w: n[2], h: n[3] }; break;
+        case "clear_clip_rect": this.clip = null; break;
+        case "push_image": this.pushImage(n[0], n[1], n[2], n[3], String(a[4])); break;
         default:
           if (!this.warned.has(name)) { this.warned.add(name); console.warn(`m5emu: unsupported command ${name}`); }
       }
