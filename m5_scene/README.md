@@ -57,6 +57,10 @@ Differences from AtomGL:
 - Lines thicker than 1 are approximated with two triangles, plus round caps from thickness 3.
   Shape edges can differ by a pixel from AtomGL's.
 
+Images are converted to RGB565 one row at a time, and the result stays cached while the image is
+in the display list: W×H×2 bytes per image (64 KB for a full 240×135 screen). The watch has no
+PSRAM, so keep large images few.
+
 Invalid items are skipped and logged (at most three lines per frame, then a count). A display list
 that is not a proper list is rejected with `{error, invalid_display_list}` and the previous frame
 stays on screen.

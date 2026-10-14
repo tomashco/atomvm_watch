@@ -35,52 +35,49 @@ retain(Cache, Images) ->
             end
         end, #{}, Images).
 
+%% Converted one row at a time, walking the RGBA bytes with binary matching: the watch has no PSRAM,
+%% and a term per pixel for a whole image would not fit in its heap.
 convert({image, _X, _Y, Bg, W, H, Px}) ->
-    runs(W, H, Bg, fun(DX, DY) -> rgba(Px, DY * W + DX) end);
+    runs(W, H, Bg, fun(DY) -> binary:part(Px, DY * W * 4, W * 4) end);
 convert({scaled, _X, _Y, W, H, Bg, SX, SY, XS, YS, FX, FY, IW, Px}) ->
-    Pixel = fun(DX, DY) ->
-                CX = case FX of true -> W - 1 - DX; false -> DX end,
-                CY = case FY of true -> H - 1 - DY; false -> DY end,
-                rgba(Px, (SY + CY div YS) * IW + SX + CX div XS)
-            end,
-    runs(W, H, Bg, Pixel).
+    Row = fun(DY) ->
+              CY = case FY of true -> H - 1 - DY; false -> DY end,
+              Src = binary:part(Px, (SY + CY div YS) * IW * 4, IW * 4),
+              iolist_to_binary(
+                [begin
+                     CX = case FX of true -> W - 1 - DX; false -> DX end,
+                     binary:part(Src, (SX + CX div XS) * 4, 4)
+                 end || DX <- lists:seq(0, W - 1)])
+          end,
+    runs(W, H, Bg, Row).
 
-rgba(Px, I) ->
-    <<R, G, B, A>> = binary:part(Px, I * 4, 4),
-    {R, G, B, A}.
-
-%% Runs are {DX, DY, W, H, Rgb565}. Opaque background: one run for the whole image, alpha-blended
-%% against Bg. transparent: per row, one run for each stretch of pixels with alpha >= 128, unblended.
-runs(W, H, _Bg, _Pixel) when W =< 0; H =< 0 ->
+%% Runs are {DX, DY, W, H, Rgb565}; Row(DY) is the RGBA bytes of drawn row DY. Opaque background:
+%% one run for the whole image, alpha-blended against Bg. transparent: per row, one run for each
+%% stretch of pixels with alpha >= 128, unblended.
+runs(W, H, _Bg, _Row) when W =< 0; H =< 0 ->
     [];
-runs(W, H, transparent, Pixel) ->
-    lists:append([row_runs(W, DY, Pixel) || DY <- lists:seq(0, H - 1)]);
-runs(W, H, Bg, Pixel) ->
-    BR = (Bg bsr 16) band 255,
-    BG = (Bg bsr 8) band 255,
-    BB = Bg band 255,
-    Bin = iolist_to_binary(
-            [begin
-                 {R, G, B, A} = Pixel(DX, DY),
-                 rgb565(blend(R, A, BR), blend(G, A, BG), blend(B, A, BB))
-             end || DY <- lists:seq(0, H - 1), DX <- lists:seq(0, W - 1)]),
+runs(_W, H, transparent, Row) ->
+    lists:append([row_runs(Row(DY), 0, DY, none, []) || DY <- lists:seq(0, H - 1)]);
+runs(W, H, Bg, Row) ->
+    BG = {(Bg bsr 16) band 255, (Bg bsr 8) band 255, Bg band 255},
+    Bin = iolist_to_binary([opaque_row(Row(DY), BG, []) || DY <- lists:seq(0, H - 1)]),
     [{0, 0, W, H, Bin}].
 
-row_runs(W, DY, Pixel) ->
-    {Done, Open} =
-        lists:foldl(
-            fun(DX, {Acc, Cur}) ->
-                case Pixel(DX, DY) of
-                    {R, G, B, A} when A >= 128 ->
-                        case Cur of
-                            none -> {Acc, {DX, [rgb565(R, G, B)]}};
-                            {Start, Px} -> {Acc, {Start, [rgb565(R, G, B) | Px]}}
-                        end;
-                    _ ->
-                        {close(Cur, DY, Acc), none}
-                end
-            end, {[], none}, lists:seq(0, W - 1)),
-    lists:reverse(close(Open, DY, Done)).
+opaque_row(<<R, G, B, A, Rest/binary>>, {BR, BG, BB} = Bg, Acc) ->
+    opaque_row(Rest, Bg, [rgb565(blend(R, A, BR), blend(G, A, BG), blend(B, A, BB)) | Acc]);
+opaque_row(<<>>, _Bg, Acc) ->
+    iolist_to_binary(lists:reverse(Acc)).
+
+row_runs(<<R, G, B, A, Rest/binary>>, DX, DY, Open, Acc) when A >= 128 ->
+    Open1 = case Open of
+                none -> {DX, [rgb565(R, G, B)]};
+                {Start, Px} -> {Start, [rgb565(R, G, B) | Px]}
+            end,
+    row_runs(Rest, DX + 1, DY, Open1, Acc);
+row_runs(<<_:32, Rest/binary>>, DX, DY, Open, Acc) ->
+    row_runs(Rest, DX + 1, DY, none, close(Open, DY, Acc));
+row_runs(<<>>, _DX, DY, Open, Acc) ->
+    lists:reverse(close(Open, DY, Acc)).
 
 close(none, _DY, Acc) -> Acc;
 close({Start, Px}, DY, Acc) -> [{Start, DY, length(Px), 1, iolist_to_binary(lists:reverse(Px))} | Acc].

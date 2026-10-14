@@ -71,3 +71,29 @@ scaled_image_flip_x_mirrors_the_drawn_pixels_test() ->
     I = v({scaled_cropped_image, 0, 0, 4, 1, 0, 0, 0, 2, 1, [flip_x], {rgba8888, 2, 1, Px}}),
     {Ops, _} = m5_scene_image:ops(I, #{}),
     ?assertEqual([{push_image, [0, 0, 4, 1, Row]}], Ops).
+
+%% A full-screen image must convert in a heap far smaller than a per-pixel list would need (the
+%% watch has no PSRAM). The cap is about 0.5 MB on 64-bit; a list with one binary per pixel needs
+%% several times that for 240x135.
+large_image_converts_in_bounded_heap_test_() ->
+    {timeout, 30, fun() ->
+        W = 240, H = 135,
+        Px = binary:copy(<<255, 0, 0, 255>>, W * H),
+        Opaque = v({image, 0, 0, 0, {rgba8888, W, H, Px}}),
+        Transparent = v({image, 0, 0, transparent, {rgba8888, W, H, Px}}),
+        Red = binary:copy(<<16#F8, 0>>, W * H),
+        ?assertEqual({ok, [{push_image, [0, 0, W, H, Red]}]}, bounded(fun() -> ops_only(Opaque) end)),
+        {ok, Runs} = bounded(fun() -> ops_only(Transparent) end),
+        ?assertEqual(H, length(Runs))
+    end}.
+
+ops_only(Item) -> {Ops, _} = m5_scene_image:ops(Item, #{}), Ops.
+
+bounded(Fun) ->
+    Self = self(),
+    {Pid, Ref} = spawn_opt(fun() -> Self ! {self(), Fun()} end,
+                           [monitor, {max_heap_size, #{size => 65536, kill => true, error_logger => false}}]),
+    receive
+        {Pid, Result} -> erlang:demonitor(Ref, [flush]), {ok, Result};
+        {'DOWN', Ref, process, Pid, Reason} -> {error, Reason}
+    end.
