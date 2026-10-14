@@ -27,6 +27,7 @@ defmodule Scenes.MixProject do
        manager: :rebar3},
       # The Hex package lists mix as a build tool but ships no mix.exs.
       {:avm_scene, "~> 0.2.0", manager: :rebar3},
+      {:m5_scene, path: "../../m5_scene", manager: :rebar3},
       {:m5_emu_mix, path: "../../m5_emu_mix", only: :dev, runtime: false}
     ]
   end
