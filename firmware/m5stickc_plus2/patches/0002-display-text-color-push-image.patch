@@ -1,0 +1,106 @@
+diff --git a/nifs/atomvm_m5_display.cc b/nifs/atomvm_m5_display.cc
+index b6ea1c2..161f8aa 100644
+--- a/nifs/atomvm_m5_display.cc
++++ b/nifs/atomvm_m5_display.cc
+@@ -195,6 +195,52 @@ M5_NIF_si2_i(nif_draw_string, Display, drawString)
+ M5_NIF_si2_i(nif_draw_center_string, Display, drawCenterString)
+ M5_NIF_si2_i(nif_draw_right_string, Display, drawRightString)
+ 
++// Colours as uint32_t: M5GFX reads an int as RGB565, a uint32_t as RGB888.
++// The same value for both keeps M5GFX's transparent text background.
++static term nif_display_set_text_color(Context* ctx, int argc, term argv[])
++{
++    UNUSED(argc);
++    VALIDATE_VALUE(argv[0], term_is_integer);
++    VALIDATE_VALUE(argv[1], term_is_integer);
++    M5.Display.setTextColor((uint32_t) term_to_int(argv[0]), (uint32_t) term_to_int(argv[1]));
++    return OK_ATOM;
++}
++
++// push_image(X, Y, W, H, Rgb565): W * H big-endian RGB565 pixels (2 bytes each).
++static term nif_display_push_image(Context* ctx, int argc, term argv[])
++{
++    UNUSED(argc);
++    for (int i = 0; i < 4; i++) {
++        VALIDATE_VALUE(argv[i], term_is_integer);
++    }
++    VALIDATE_VALUE(argv[4], term_is_binary);
++    avm_int_t x = term_to_int(argv[0]);
++    avm_int_t y = term_to_int(argv[1]);
++    avm_int_t w = term_to_int(argv[2]);
++    avm_int_t h = term_to_int(argv[3]);
++    if (w <= 0 || h <= 0) {
++        return OK_ATOM;
++    }
++    size_t needed = (size_t) w * (size_t) h * 2;
++    if (term_binary_size(argv[4]) < needed) {
++        RAISE_ERROR(BADARG_ATOM);
++    }
++    const uint8_t* data = (const uint8_t*) term_binary_data(argv[4]);
++    // swap565_t is read as 16-bit words: copy an odd-aligned binary (a sub-binary can be).
++    uint8_t* copy = NULL;
++    if (((uintptr_t) data) & 1) {
++        copy = (uint8_t*) malloc(needed);
++        if (IS_NULL_PTR(copy)) {
++            RAISE_ERROR(OUT_OF_MEMORY_ATOM);
++        }
++        memcpy(copy, data, needed);
++        data = copy;
++    }
++    M5.Display.pushImage(x, y, w, h, (const lgfx::swap565_t*) data);
++    free(copy);
++    return OK_ATOM;
++}
++
+ static term nif_display_print(Context* ctx, int argc, term argv[])
+ {
+     UNUSED(argc);
+@@ -244,7 +290,7 @@ static term nif_display_println(Context* ctx, int argc, term argv[])
+     return term_from_int(r);
+ }
+ 
+-static constexpr std::array<std::pair<const char*, const struct Nif>, 88>
++static constexpr std::array<std::pair<const char*, const struct Nif>, 90>
+     NIFS = { {
+         { "set_epd_mode/1", { { NIFFunctionType }, nif_display_set_epd_mode } },
+         { "set_brightness/1", { { NIFFunctionType }, nif_display_set_brightness } },
+@@ -348,6 +394,8 @@ static constexpr std::array<std::pair<const char*, const struct Nif>, 88>
+         { "draw_string/3", { { NIFFunctionType }, nif_draw_string } },
+         { "draw_center_string/3", { { NIFFunctionType }, nif_draw_center_string } },
+         { "draw_right_string/3", { { NIFFunctionType }, nif_draw_right_string } },
++        { "set_text_color/2", { { NIFFunctionType }, nif_display_set_text_color } },
++        { "push_image/5", { { NIFFunctionType }, nif_display_push_image } },
+ 
+         { "print/1", { { NIFFunctionType }, nif_display_print } },
+         { "println/1", { { NIFFunctionType }, nif_display_println } },
+diff --git a/src/m5_display.erl b/src/m5_display.erl
+index cd4e90d..07a2a99 100644
+--- a/src/m5_display.erl
++++ b/src/m5_display.erl
+@@ -98,6 +98,8 @@
+     draw_string/3,
+     draw_center_string/3,
+     draw_right_string/3,
++    set_text_color/2,
++    push_image/5,
+ 
+     print/1,
+     println/1,
+@@ -593,6 +595,17 @@ draw_center_string(_String, _X, _Y) ->
+ draw_right_string(_String, _X, _Y) ->
+     throw(nif_error).
+ 
++%% @doc Set the text foreground and background colours (24-bit RGB). The same value for both
++%% draws text with a transparent background.
++-spec set_text_color(integer(), integer()) -> ok.
++set_text_color(_Fg, _Bg) ->
++    throw(nif_error).
++
++%% @doc Draw W x H pixels at X, Y from a binary of W * H big-endian RGB565 values.
++-spec push_image(integer(), integer(), integer(), integer(), binary()) -> ok.
++push_image(_X, _Y, _W, _H, _Rgb565) ->
++    throw(nif_error).
++
+ %% @doc Print a string with a new line
+ -spec print(iodata()) -> ok.
+ print(_String) ->
