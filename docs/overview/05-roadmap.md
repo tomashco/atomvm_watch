@@ -39,3 +39,6 @@ Plan: `docs/superpowers/plans/2026-10-03-milestone-1-emulator-installer.md`.
 - Mirroring the real watch's screen in the page.
 - Native emulation: `atomvm_m5`'s NIFs compiled against M5GFX's SDL backend (see `03-emulator.md`).
 - ESP32 watches that aren't M5 (T‑Watch, Watchy e‑paper).
+- AtomGL in the firmware (the `display` port), so scenes run on AtomGL's own renderer:
+  `m5_scene` apps switch with `display_server: {port, Display}`. Needs M5Unified to leave the
+  display to AtomGL and probably a larger VM partition.

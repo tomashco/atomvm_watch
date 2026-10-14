@@ -21,6 +21,15 @@ Needs the watch on USB and a Chrome or Edge browser. Record results in
 - [x] Keeps running on battery with USB unplugged.
 - [x] Text and fonts look right (compare against the emulator by eye; known to differ slightly).
 
+## Scenes example (`m5_scene`, firmware with patch 0002)
+
+- [ ] Flash the runtime built with patch `0002` and `scenes.avm` (`esptool ... write-flash 0x250000 scenes.avm`, 115200 baud).
+- [ ] Menu shows the title, three entries with red, green and blue discs, a white rounded highlight with black text.
+- [ ] A moves the highlight with no visible flicker; B opens the detail (cyan circle, yellow line); B and hold A go back.
+- [ ] Colours match the emulator (RGB565 byte order: the red disc is red, not blue).
+- [ ] Highlight move feels instant (target under 50 ms; serial timing optional).
+- [ ] Works on battery.
+
 ## Web installer
 
 - [ ] Open `https://tomashco.github.io/atomvm_watch/?avm=./fixtures/clock.avm` (the plain URL starts empty), the emulator runs the clock.
