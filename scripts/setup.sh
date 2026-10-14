@@ -7,6 +7,9 @@ scripts/build-atomvmlib.sh
 if [ -d m5_emu ]; then
   (cd m5_emu && rebar3 get-deps)
 fi
+if [ -d m5_scene ]; then
+  (cd m5_scene && rebar3 get-deps)
+fi
 if [ -d examples/clock ] || [ -d examples/scenes ] || [ -d m5_emu_mix ]; then
   mix local.hex --force
   mix local.rebar --force
