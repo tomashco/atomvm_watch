@@ -37,10 +37,11 @@ cache_reuses_conversion_test() ->
     I = v({image, 0, 0, 0, {rgba8888, 1, 1, <<1, 2, 3, 255>>}}),
     {_, C1} = m5_scene_image:ops(I, #{}),
     ?assertEqual(1, map_size(C1)),
-    %% Replace the entry with a sentinel: the next call must use it instead of converting again.
+    %% Replace the entry with a sentinel (one 3x1 run: an 8-byte header and its pixels): the next
+    %% call must use it instead of converting again.
     [Key] = maps:keys(C1),
-    {Ops, _} = m5_scene_image:ops(I, C1#{Key := {[{0, 0, 1, 1, <<"cached">>}], 6, 0}}),
-    ?assertEqual([{push_image, [0, 0, 1, 1, <<"cached">>]}], Ops).
+    {Ops, _} = m5_scene_image:ops(I, C1#{Key := {<<0:16, 0:16, 3:16, 1:16, "cached">>, 14, 0}}),
+    ?assertEqual([{push_image, [0, 0, 3, 1, <<"cached">>]}], Ops).
 
 moved_image_shares_the_cache_entry_test() ->
     Img = {rgba8888, 1, 1, <<1, 2, 3, 255>>},
@@ -67,19 +68,20 @@ retain_keeps_a_dropped_image_within_the_budget_test() ->
     ?assertEqual(2, map_size(C3)),
     %% B is still cached: drawing it again uses the entry (sentinel) instead of converting.
     [KB] = maps:keys(C3) -- maps:keys(C1),
-    {Ops, _} = m5_scene_image:ops(B, C3#{KB := {[{0, 0, 1, 1, <<"cached">>}], 6, 0}}),
-    ?assertEqual([{push_image, [0, 0, 1, 1, <<"cached">>]}], Ops).
+    {Ops, _} = m5_scene_image:ops(B, C3#{KB := {<<0:16, 0:16, 3:16, 1:16, "cached">>, 14, 0}}),
+    ?assertEqual([{push_image, [0, 0, 3, 1, <<"cached">>]}], Ops).
 
-%% Dropped images are kept most recently used first, up to the budget in bytes of RGB565 data.
+%% Dropped images are kept most recently used first, up to the budget in bytes (a 1x1 image is
+%% one run: 8 bytes of header and 2 of RGB565).
 retain_drops_the_least_recently_used_beyond_the_budget_test() ->
     [A, B, C] = [v({image, 0, 0, 0, {rgba8888, 1, 1, <<N, 0, 0, 255>>}}) || N <- [1, 2, 3]],
     {_, C1} = m5_scene_image:ops(A, #{}),
-    C2 = m5_scene_image:retain(C1, [A], 2),           % frame 1 shows A
+    C2 = m5_scene_image:retain(C1, [A], 10),          % frame 1 shows A
     {_, C3} = m5_scene_image:ops(B, C2),
-    C4 = m5_scene_image:retain(C3, [B], 2),           % frame 2 shows B; A kept (2 bytes)
+    C4 = m5_scene_image:retain(C3, [B], 10),          % frame 2 shows B; A kept (10 bytes)
     ?assertEqual(2, map_size(C4)),
     {_, C5} = m5_scene_image:ops(C, C4),
-    C6 = m5_scene_image:retain(C5, [C], 2),           % frame 3 shows C; only B fits the budget
+    C6 = m5_scene_image:retain(C5, [C], 10),          % frame 3 shows C; only B fits the budget
     {_, OnlyB} = m5_scene_image:ops(B, m5_scene_image:retain(C5, [C], 0)),
     ?assertEqual(lists:sort(maps:keys(OnlyB)), lists:sort(maps:keys(C6))).
 
@@ -123,3 +125,14 @@ bounded(Fun) ->
         {Pid, Result} -> erlang:demonitor(Ref, [flush]), {ok, Result};
         {'DOWN', Ref, process, Pid, Reason} -> {error, Reason}
     end.
+
+%% The cache stays on the display server's heap, which AtomVM garbage-collects every few dozen
+%% words by default, copying everything live. A sprite with many transparent runs must cost a few
+%% words there (its pixels in one binary, kept off the heap), not a term per run.
+cached_sprite_is_small_on_the_heap_test() ->
+    W = 68, H = 40,
+    Px = << <<(X rem 256), 0, 0, (case (X div 3) rem 2 of 0 -> 0; 1 -> 255 end)>> || X <- lists:seq(0, W * H - 1) >>,
+    {Ops, Cache} = m5_scene_image:ops(v({image, 0, 0, transparent, {rgba8888, W, H, Px}}), #{}),
+    ?assert(length(Ops) > 400),
+    [{Blob, _, _}] = maps:values(Cache),
+    ?assert(erts_debug:flat_size(Blob) < 16).

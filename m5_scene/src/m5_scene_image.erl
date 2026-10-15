@@ -3,8 +3,8 @@
 -module(m5_scene_image).
 -export([ops/2, is_image/1, retain/2, retain/3, rgb565/3, blend/3]).
 
-%% Bytes of RGB565 data kept for images that left the display list, so an animation's frames are
-%% converted once and not every time they come back.
+%% Bytes kept for images that left the display list, so an animation's frames are converted once
+%% and not every time they come back.
 -define(KEEP_BYTES, 32768).
 
 is_image(Item) -> element(1, Item) =:= image orelse element(1, Item) =:= scaled.
@@ -16,7 +16,11 @@ key({scaled, _X, _Y, W, H, Bg, SX, SY, XS, YS, FX, FY, IW, Px}) ->
     {scaled, W, H, Bg, SX, SY, XS, YS, FX, FY, IW, Px}.
 
 %% push_image operations for an image item, and the cache with its entry added. An entry is
-%% {Runs, Bytes, Age}: Age counts the frames since the image was last in the display list.
+%% {Runs, Bytes, Age}: Runs is one binary of runs, each an 8-byte header <<DX:16, DY:16, W:16, H:16>>
+%% followed by its W*H*2 bytes of RGB565, Bytes its size, Age the frames since the image was last in
+%% the display list. One binary keeps the cache off the display server's heap: AtomVM's default heap
+%% growth collects every few dozen words, copying everything live, and a term per run made every
+%% frame slow on the watch.
 ops(Item, Cache) ->
     Key = key(Item),
     Entry =
@@ -24,12 +28,16 @@ ops(Item, Cache) ->
             {ok, E} -> E;
             error ->
                 Runs = convert(Item),
-                {Runs, lists:foldl(fun({_, _, _, _, B}, N) -> N + byte_size(B) end, 0, Runs), 0}
+                {Runs, byte_size(Runs), 0}
         end,
-    X = element(2, Item),
-    Y = element(3, Item),
-    {[{push_image, [X + DX, Y + DY, W, H, Bin]} || {DX, DY, W, H, Bin} <- element(1, Entry)],
-     maps:put(Key, Entry, Cache)}.
+    {push_ops(element(1, Entry), element(2, Item), element(3, Item), []), maps:put(Key, Entry, Cache)}.
+
+push_ops(<<DX:16, DY:16, W:16, H:16, Rest/binary>>, X, Y, Acc) ->
+    N = W * H * 2,
+    <<Bin:N/binary, Rest1/binary>> = Rest,
+    push_ops(Rest1, X, Y, [{push_image, [X + DX, Y + DY, W, H, Bin]} | Acc]);
+push_ops(<<>>, _X, _Y, Acc) ->
+    lists:reverse(Acc).
 
 retain(Cache, Images) ->
     retain(Cache, Images, ?KEEP_BYTES).
@@ -70,17 +78,17 @@ convert({scaled, _X, _Y, W, H, Bg, SX, SY, XS, YS, FX, FY, IW, Px}) ->
           end,
     runs(W, H, Bg, Row).
 
-%% Runs are {DX, DY, W, H, Rgb565}; Row(DY) is the RGBA bytes of drawn row DY. Opaque background:
-%% one run for the whole image, alpha-blended against Bg. transparent: per row, one run for each
-%% stretch of pixels with alpha >= 128, unblended.
+%% The runs binary (see ops/2); Row(DY) is the RGBA bytes of drawn row DY. Opaque background: one
+%% run for the whole image, alpha-blended against Bg. transparent: per row, one run for each stretch
+%% of pixels with alpha >= 128, unblended.
 runs(W, H, _Bg, _Row) when W =< 0; H =< 0 ->
-    [];
+    <<>>;
 runs(_W, H, transparent, Row) ->
-    lists:append([row_runs(Row(DY), 0, DY, none, []) || DY <- lists:seq(0, H - 1)]);
+    %% Each row packed as it is converted, so only one row's pixels are terms at a time.
+    iolist_to_binary([iolist_to_binary(row_runs(Row(DY), 0, DY, none, [])) || DY <- lists:seq(0, H - 1)]);
 runs(W, H, Bg, Row) ->
     BG = {(Bg bsr 16) band 255, (Bg bsr 8) band 255, Bg band 255},
-    Bin = iolist_to_binary([opaque_row(Row(DY), BG, []) || DY <- lists:seq(0, H - 1)]),
-    [{0, 0, W, H, Bin}].
+    iolist_to_binary([<<0:16, 0:16, W:16, H:16>> | [opaque_row(Row(DY), BG, []) || DY <- lists:seq(0, H - 1)]]).
 
 opaque_row(<<R, G, B, A, Rest/binary>>, {BR, BG, BB} = Bg, Acc) ->
     opaque_row(Rest, Bg, [rgb565(blend(R, A, BR), blend(G, A, BG), blend(B, A, BB)) | Acc]);
@@ -99,7 +107,7 @@ row_runs(<<>>, _DX, DY, Open, Acc) ->
     lists:reverse(close(Open, DY, Acc)).
 
 close(none, _DY, Acc) -> Acc;
-close({Start, Px}, DY, Acc) -> [{Start, DY, length(Px), 1, iolist_to_binary(lists:reverse(Px))} | Acc].
+close({Start, Px}, DY, Acc) -> [[<<Start:16, DY:16, (length(Px)):16, 1:16>> | lists:reverse(Px)] | Acc].
 
 blend(S, A, B) -> (S * A + B * (255 - A)) div 255.
 
