@@ -125,3 +125,16 @@ plan_alternating_frames_keeps_both_cached_test() ->
     {_, C2} = m5_scene_render:plan(v([A]), v([B]), ?S, C1),
     {_, C3} = m5_scene_render:plan(v([B]), v([A]), ?S, C2),
     ?assertEqual(2, map_size(C3)).
+
+%% Many small items moving at once (a rainbow trail's wave flipping) give many separate clusters
+%% of overlapping dirty rectangles. Merging them must not start over after every union: that was
+%% cubic, half a second per frame on the watch, and over 3 s here.
+many_moved_clusters_plan_quickly_test_() ->
+    {timeout, 30,
+     fun() ->
+         Grid = fun(DY) -> [{rect, X * 10, Y * 10 + DY, 4, 4, 16#FF} || X <- lists:seq(0, 29), Y <- lists:seq(0, 29)] end,
+         {T, {Ops, _}} = timer:tc(fun() -> m5_scene_render:plan(v(Grid(0)), v(Grid(2)), {1000, 1000, 0}, #{}) end),
+         %% One clipped region per cluster: set_clip_rect, fill, rect, clear_clip_rect.
+         ?assertEqual(2 + 900 * 4, length(Ops)),
+         ?assert(T < 500000)
+     end}.

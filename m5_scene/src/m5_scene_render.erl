@@ -337,22 +337,32 @@ overlaps({X1, Y1, W1, H1}, {X2, Y2, W2, H2}) ->
     W1 > 0 andalso H1 > 0 andalso X1 < X2 + W2 andalso X2 < X1 + W1
         andalso Y1 < Y2 + H2 andalso Y2 < Y1 + H1.
 
-%% Merges overlapping rectangles into their bounding union until none overlap.
+%% Merges overlapping rectangles into their bounding union until none overlap. Each rectangle
+%% absorbs every one it overlaps, merged or still to come, and again while its union grows; the
+%% merged ones never overlap each other, so nothing is merged twice.
 merge(Rects) -> merge(Rects, []).
 
 merge([], Acc) ->
     lists:reverse(Acc);
 merge([R | Rest], Acc) ->
-    case take_overlapping(R, lists:reverse(Acc) ++ Rest, []) of
-        none -> merge(Rest, [R | Acc]);
-        {Other, Remaining} -> merge([union(R, Other) | Remaining], [])
+    {R1, Acc1, Rest1} = absorb(R, Acc, Rest),
+    merge(Rest1, [R1 | Acc1]).
+
+absorb(R, Acc, Rest) ->
+    {InAcc, Acc1} = split(R, Acc, [], []),
+    {InRest, Rest1} = split(R, Rest, [], []),
+    case InAcc ++ InRest of
+        [] -> {R, Acc1, Rest1};
+        Overlapping -> absorb(lists:foldl(fun union/2, R, Overlapping), Acc1, Rest1)
     end.
 
-take_overlapping(_R, [], _Seen) -> none;
-take_overlapping(R, [O | Rest], Seen) ->
+%% {the rectangles overlapping R, the others}, in order (AtomVM has no lists:partition/2).
+split(_R, [], In, Out) ->
+    {lists:reverse(In), lists:reverse(Out)};
+split(R, [O | Rest], In, Out) ->
     case overlaps(R, O) of
-        true -> {O, lists:reverse(Seen) ++ Rest};
-        false -> take_overlapping(R, Rest, [O | Seen])
+        true -> split(R, Rest, [O | In], Out);
+        false -> split(R, Rest, In, [O | Out])
     end.
 
 union({X1, Y1, W1, H1}, {X2, Y2, W2, H2}) ->
