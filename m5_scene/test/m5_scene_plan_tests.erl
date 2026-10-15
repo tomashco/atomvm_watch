@@ -57,21 +57,27 @@ change_under_half_is_partial_test() ->
     ?assertMatch([{start_write, []}, {set_clip_rect, [0, 0, 100, 100]} | _],
                  next([], [{rect, 0, 0, 100, 100, 1}])).
 
-reordered_list_is_full_redraw_test() ->
+%% Items that changed position count as changed: their boxes are redrawn, back to front.
+reordered_list_redraws_the_swapped_items_test() ->
     A = {rect, 0, 0, 10, 10, 1},
     B = {rect, 5, 5, 10, 10, 2},
-    ?assertEqual([{start_write, []}, {fill_rect, [0, 0, 240, 135, 0]},
+    ?assertEqual([{start_write, []}, {set_clip_rect, [0, 0, 15, 15]}, {fill_rect, [0, 0, 15, 15, 0]},
                   {fill_rect, [5, 5, 10, 10, 2]}, {fill_rect, [0, 0, 10, 10, 1]},
-                  {end_write, []}],
+                  {clear_clip_rect, []}, {end_write, []}],
                  next([B, A], [A, B])).
 
-reorder_with_another_change_is_full_redraw_test() ->
-    %% A and B overlap and swap stacking order while X, elsewhere, changes colour: redrawing only
-    %% X's box would leave A on top of B.
+reorder_with_another_change_redraws_both_areas_test() ->
+    %% A and B overlap and swap stacking order while X, elsewhere, changes colour: A's and B's area
+    %% is redrawn, B (now first) drawn last so it ends on top, not only X's box.
     A = {rect, 0, 0, 10, 10, 1},
     B = {rect, 5, 5, 10, 10, 2},
-    ?assertMatch([{start_write, []}, {fill_rect, [0, 0, 240, 135, 0]} | _],
-                 next([A, B, {rect, 200, 0, 10, 10, 3}], [B, A, {rect, 200, 0, 10, 10, 4}])).
+    Ops = next([A, B, {rect, 200, 0, 10, 10, 3}], [B, A, {rect, 200, 0, 10, 10, 4}]),
+    ?assert(lists:member({set_clip_rect, [0, 0, 15, 15]}, Ops)),
+    ?assert(lists:member({set_clip_rect, [200, 0, 10, 10]}, Ops)),
+    {Before, _} = lists:splitwith(fun(Op) -> Op =/= {clear_clip_rect, []} end,
+                                  lists:dropwhile(fun(Op) -> Op =/= {set_clip_rect, [0, 0, 15, 15]} end, Ops)),
+    ?assertEqual([{fill_rect, [0, 0, 10, 10, 1]}, {fill_rect, [5, 5, 10, 10, 2]}],
+                 [Op || {fill_rect, [_, _, 10, 10, _]} = Op <- Before]).
 
 offscreen_change_draws_nothing_test() ->
     ?assertEqual([], next([{rect, 300, 0, 5, 5, 1}], [{rect, 400, 0, 5, 5, 1}])).
@@ -126,15 +132,53 @@ plan_alternating_frames_keeps_both_cached_test() ->
     {_, C3} = m5_scene_render:plan(v([B]), v([A]), ?S, C2),
     ?assertEqual(2, map_size(C3)).
 
-%% Many small items moving at once (a rainbow trail's wave flipping) give many separate clusters
-%% of overlapping dirty rectangles. Merging them must not start over after every union: that was
-%% cubic, half a second per frame on the watch, and over 3 s here.
-many_moved_clusters_plan_quickly_test_() ->
+%% Many small items moving at once (a rainbow trail's wave flipping): merging their boxes costs
+%% more on the watch than redrawing one area, so past 16 changed boxes the area covering them all is
+%% redrawn as one region. It also used to be cubic: over 3 s here, half a second on the watch.
+many_changed_boxes_redraw_one_covering_region_test_() ->
     {timeout, 30,
      fun() ->
          Grid = fun(DY) -> [{rect, X * 10, Y * 10 + DY, 4, 4, 16#FF} || X <- lists:seq(0, 29), Y <- lists:seq(0, 29)] end,
          {T, {Ops, _}} = timer:tc(fun() -> m5_scene_render:plan(v(Grid(0)), v(Grid(2)), {1000, 1000, 0}, #{}) end),
-         %% One clipped region per cluster: set_clip_rect, fill, rect, clear_clip_rect.
-         ?assertEqual(2 + 900 * 4, length(Ops)),
+         ?assertEqual([{set_clip_rect, [0, 0, 294, 296]}], [Op || {set_clip_rect, _} = Op <- Ops]),
+         ?assertEqual(2 + 3 + 900, length(Ops)),
          ?assert(T < 500000)
      end}.
+
+few_changed_boxes_redraw_separate_regions_test() ->
+    Old = [{rect, X * 20, 0, 4, 4, 1} || X <- lists:seq(0, 3)],
+    New = [{rect, X * 20, 0, 4, 4, 2} || X <- lists:seq(0, 3)],
+    ?assertEqual(4, length([Op || {set_clip_rect, _} = Op <- next(Old, New)])).
+
+%% The property behind plan/4: its operations, drawn over a screen showing Old, give the screen New
+%% gives when drawn from scratch. Random overlapping rects from a small pool on a 6x6 screen, so
+%% duplicates, reorders and partial redraws all occur.
+plan_turns_old_screen_into_new_test() ->
+    rand:seed(exsss, {1, 2, 3}),
+    Pool = [{rect, rand:uniform(5) - 1, rand:uniform(5) - 1, rand:uniform(3), rand:uniform(3), rand:uniform(3)}
+            || _ <- lists:seq(1, 6)],
+    Rand = fun() -> v([lists:nth(rand:uniform(6), Pool) || _ <- lists:seq(1, rand:uniform(7) - 1)]) end,
+    Screen = {6, 6, 0},
+    lists:foreach(
+      fun(_) ->
+          Old = Rand(), New = Rand(),
+          {Full, _} = m5_scene_render:plan(none, New, Screen, #{}),
+          {First, _} = m5_scene_render:plan(none, Old, Screen, #{}),
+          {Step, _} = m5_scene_render:plan(Old, New, Screen, #{}),
+          ?assertEqual({Old, New, paint(Full, #{})}, {Old, New, paint(Step, paint(First, #{}))})
+      end, lists:seq(1, 3000)).
+
+%% A 6x6 canvas as #{{X, Y} => Color}, drawn with the operations rects produce.
+paint(Ops, Canvas) -> element(1, lists:foldl(fun op/2, {Canvas, none}, Ops)).
+
+op({fill_rect, [X, Y, W, H, C]}, {Canvas, Clip}) ->
+    {lists:foldl(fun(P, Acc) -> maps:put(P, C, Acc) end, Canvas,
+                 [{PX, PY} || PX <- lists:seq(X, X + W - 1), PY <- lists:seq(Y, Y + H - 1),
+                              PX >= 0, PX < 6, PY >= 0, PY < 6, in_clip(PX, PY, Clip)]), Clip};
+op({set_clip_rect, [X, Y, W, H]}, {Canvas, _}) -> {Canvas, {X, Y, W, H}};
+op({clear_clip_rect, []}, {Canvas, _}) -> {Canvas, none};
+op({start_write, []}, Acc) -> Acc;
+op({end_write, []}, Acc) -> Acc.
+
+in_clip(_X, _Y, none) -> true;
+in_clip(X, Y, {CX, CY, CW, CH}) -> X >= CX andalso X < CX + CW andalso Y >= CY andalso Y < CY + CH.

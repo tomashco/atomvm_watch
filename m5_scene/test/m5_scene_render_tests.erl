@@ -89,3 +89,20 @@ bbox_test() ->
     ?assertEqual({2, 9, 9, 1}, B({line, 10, 9, 2, 9, 1, 0})),
     %% Thickness 3 pads by (3 - 1) div 2 + 1 = 2 on every side.
     ?assertEqual({0, 7, 13, 5}, B({line, 2, 9, 10, 9, 3, 0})).
+
+%% Text width counts characters as unicode:characters_to_list/1 does, and one per byte when that
+%% fails (malformed UTF-8), as m5_emu does.
+text_character_count_matches_unicode_test() ->
+    Cases = [<<>>, <<"abc">>, <<"hé"/utf8>>, <<"€"/utf8>>, <<16#1F431/utf8>>, <<"a", 16#1F431/utf8, "b">>,
+             <<16#80>>, <<16#C0, 16#AF>>, <<16#C3>>, <<16#E2, 16#82>>, <<16#E0, 16#80, 16#AF>>,
+             <<16#ED, 16#A0, 16#80>>, <<16#F4, 16#90, 16#80, 16#80>>, <<16#F5, 16#80, 16#80, 16#80>>,
+             <<16#FF, "a">>, <<"ok", 16#C3>>, <<16#EF, 16#BF, 16#BF>>, <<16#F0, 16#90, 16#80, 16#80>>],
+    lists:foreach(
+      fun(Bin) ->
+          Expected = case catch unicode:characters_to_list(Bin) of
+                         L when is_list(L) -> length(L);
+                         _ -> byte_size(Bin)
+                     end,
+          {ok, [Item], _} = m5_scene_render:validate([{text, 0, 0, m5_font1, 0, 0, Bin}]),
+          ?assertEqual({Bin, Expected}, {Bin, element(8, Item)})
+      end, Cases).

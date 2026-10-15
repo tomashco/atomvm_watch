@@ -3,8 +3,18 @@
 -module(m5_scene_render).
 -export([validate/1, bbox/1, plan/4]).
 
+-ifdef(TEST).
+-export([diff/2]).
+-endif.
+
 -define(MAXC, 32767).
 -define(LOG_MAX, 3).
+%% Past this many changed boxes, the area covering them all is redrawn as one region: on the watch,
+%% merging them costs more than redrawing.
+-define(MAX_BOXES, 16).
+-define(IN(V), (is_integer(V) andalso V >= -?MAXC andalso V =< ?MAXC)).
+-define(CONT(B), (B band 16#C0 =:= 16#80)).
+-define(RGB(C), (is_integer(C) andalso C >= 0 andalso C =< 16#FFFFFF)).
 
 %% Checks every item of a display list and normalizes the valid ones: rect and text values clamped
 %% to +-32767, colours masked to 24 bits, text as a UTF-8 binary with its character count, fonts
@@ -46,16 +56,20 @@ item(T) when is_tuple(T), tuple_size(T) > 0 ->
 item(_) ->
     {error, "not a command tuple"}.
 
-rect({rect, X, Y, W, H, C}) ->
-    case ints([X, Y, W, H, C]) of
-        true -> {ok, {rect, clamp(X), clamp(Y), clamp(W), clamp(H), C band 16#FFFFFF}};
-        false -> {error, "bad position, size or color"}
-    end;
+%% Items that need no normalizing are returned as they are: on AtomVM every allocation in the
+%% display server can trigger a garbage collection that copies its whole heap.
+rect({rect, X, Y, W, H, C} = T) when ?IN(X), ?IN(Y), ?IN(W), ?IN(H), ?RGB(C) ->
+    {ok, T};
+rect({rect, X, Y, W, H, C}) when is_integer(X), is_integer(Y), is_integer(W), is_integer(H),
+                                 is_integer(C) ->
+    {ok, {rect, clamp(X), clamp(Y), clamp(W), clamp(H), C band 16#FFFFFF}};
+rect({rect, _, _, _, _, _}) ->
+    {error, "bad position, size or color"};
 rect(_) ->
     {error, "wrong arity"}.
 
 text({text, X, Y, Font, Fg, Bg, Text}) ->
-    case ints([X, Y, Fg]) andalso is_bg(Bg) of
+    case is_integer(X) andalso is_integer(Y) andalso is_integer(Fg) andalso is_bg(Bg) of
         false ->
             {error, "bad position or color"};
         true when not is_atom(Font) ->
@@ -164,12 +178,28 @@ utf8(L) when is_list(L) ->
     end;
 utf8(_) -> error.
 
-%% Malformed UTF-8 counts one character per byte, as m5_emu does.
+%% Malformed UTF-8 counts one character per byte, as m5_emu does. Counted on the bytes, without
+%% building the character list.
 chars(Bin) ->
-    case catch unicode:characters_to_list(Bin) of
-        L when is_list(L) -> length(L);
-        _ -> byte_size(Bin)
+    case utf8_chars(Bin, 0) of
+        error -> byte_size(Bin);
+        N -> N
     end.
+
+utf8_chars(<<>>, N) -> N;
+utf8_chars(<<C, R/binary>>, N) when C < 16#80 -> utf8_chars(R, N + 1);
+utf8_chars(<<C, C1, R/binary>>, N) when C >= 16#C2, C < 16#E0, ?CONT(C1) -> utf8_chars(R, N + 1);
+utf8_chars(<<C, C1, C2, R/binary>>, N) when C >= 16#E0, C < 16#F0, ?CONT(C1), ?CONT(C2) ->
+    case (C =:= 16#E0 andalso C1 < 16#A0) orelse (C =:= 16#ED andalso C1 >= 16#A0) of
+        true -> error;                                  % overlong, or a UTF-16 surrogate
+        false -> utf8_chars(R, N + 1)
+    end;
+utf8_chars(<<C, C1, C2, C3, R/binary>>, N) when C >= 16#F0, C < 16#F5, ?CONT(C1), ?CONT(C2), ?CONT(C3) ->
+    case (C =:= 16#F0 andalso C1 < 16#90) orelse (C =:= 16#F4 andalso C1 >= 16#90) of
+        true -> error;                                  % overlong, or above U+10FFFF
+        false -> utf8_chars(R, N + 1)
+    end;
+utf8_chars(_, _) -> error.
 
 is_bg(transparent) -> true;
 is_bg(C) -> is_integer(C).
@@ -177,9 +207,9 @@ is_bg(C) -> is_integer(C).
 bg(transparent) -> transparent;
 bg(C) -> C band 16#FFFFFF.
 
-ints(L) -> lists:all(fun erlang:is_integer/1, L).
-
-in_range(L) -> lists:all(fun(V) -> is_integer(V) andalso V >= -?MAXC andalso V =< ?MAXC end, L).
+in_range([V | T]) when ?IN(V) -> in_range(T);
+in_range([]) -> true;
+in_range(_) -> false.
 
 clamp(V) -> max(-?MAXC, min(?MAXC, V)).
 
@@ -229,10 +259,12 @@ plan(Same, Same, _Screen, Cache) ->
     {[], Cache};
 plan(Old, New, {W, H, Bg}, Cache) ->
     Screen = {0, 0, W, H},
+    %% Bottom item first, with its box, computed once for all the regions.
+    Boxed = lists:reverse([{bbox(I), I} || I <- New]),
     {Body, Cache1} =
         case dirty(Old, New, Screen) of
-            full -> region(Screen, New, Bg, false, Cache);
-            Rects -> regions(Rects, New, Bg, Cache)
+            full -> region(Screen, Boxed, Bg, false, Cache);
+            Rects -> regions(Rects, Boxed, Bg, Cache)
         end,
     Ops =
         case Body of
@@ -241,37 +273,76 @@ plan(Old, New, {W, H, Bg}, Cache) ->
         end,
     {Ops, m5_scene_image:retain(Cache1, [I || I <- New, m5_scene_image:is_image(I)])}.
 
-%% full, or the merged dirty rectangles: the boxes of the items added and removed, clipped to the
-%% screen. Items kept from Old in another order change the stacking everywhere, so that is full too,
-%% also when other items changed in the same frame.
+%% full, or the dirty rectangles: the boxes of the items added, removed or moved in the list (see
+%% diff/2), clipped to the screen and merged, or one box covering them past ?MAX_BOXES. Kept items
+%% that change order (possible when the list changed length) change the stacking everywhere, so
+%% that is full too. Over half the screen is full.
 dirty(none, _New, _Screen) ->
     full;
 dirty(Old, New, {_, _, W, H} = Screen) ->
-    Removed = subtract(Old, New),
-    Added = subtract(New, Old),
-    case subtract(Old, Removed) =:= subtract(New, Added) of
-        false ->
+    case diff(Old, New) of
+        {_Removed, _Added, false} ->
             full;
-        true ->
+        {Removed, Added, true} ->
             Changed = Removed ++ Added,
-            Rects = merge([R || I <- Changed, R <- [clip(bbox(I), Screen)], R =/= empty]),
+            Rects = case [R || I <- Changed, R <- [clip(bbox(I), Screen)], R =/= empty] of
+                        Boxes when length(Boxes) > ?MAX_BOXES -> [cover(Boxes)];
+                        Boxes -> merge(Boxes)
+                    end,
             case area(Rects) * 2 > W * H of
                 true -> full;
                 false -> Rects
             end
     end.
 
-regions(Rects, Items, Bg, Cache) ->
-    lists:foldl(
-        fun(R, {Ops, C}) ->
-            {Ops1, C1} = region(R, Items, Bg, true, C),
-            {Ops ++ Ops1, C1}
-        end, {[], Cache}, Rects).
+%% {Removed, Added, InOrder}: items of Old not kept in New and items of New not in Old, each in its
+%% list's order, and whether the kept items keep their order. The common prefix and suffix are kept
+%% as they are; middles of the same length are compared position by position, others as multisets.
+%% On AtomVM the display server's allocations dominate a frame (see m5_scene_image:ops/2), so this
+%% avoids sorting and allocates little when consecutive frames are alike.
+diff(Old, New) ->
+    {O1, N1} = drop_prefix(Old, New),
+    {RO, RN} = drop_prefix(lists:reverse(O1), lists:reverse(N1)),
+    OM = lists:reverse(RO),
+    NM = lists:reverse(RN),
+    case length(OM) =:= length(NM) of
+        true ->
+            {Rm, Ad} = positional(OM, NM, [], []),
+            {Rm, Ad, true};
+        false ->
+            Rm = subtract(OM, NM),
+            Ad = subtract(NM, OM),
+            {Rm, Ad, subtract(OM, Rm) =:= subtract(NM, Ad)}
+    end.
+
+drop_prefix([X | O], [X | N]) -> drop_prefix(O, N);
+drop_prefix(O, N) -> {O, N}.
+
+positional([X | O], [X | N], Rm, Ad) -> positional(O, N, Rm, Ad);
+positional([A | O], [B | N], Rm, Ad) -> positional(O, N, [A | Rm], [B | Ad]);
+positional([], [], Rm, Ad) -> {lists:reverse(Rm), lists:reverse(Ad)}.
+
+subtract(L, []) -> L;
+subtract(L, [X | Xs]) -> subtract(delete(X, L), Xs).
+
+delete(_X, []) -> [];
+delete(X, [X | T]) -> T;
+delete(X, [H | T]) -> [H | delete(X, T)].
+
+regions(Rects, Boxed, Bg, Cache) ->
+    {Parts, Cache1} =
+        lists:foldl(
+            fun(R, {Acc, C}) ->
+                {Ops1, C1} = region(R, Boxed, Bg, true, C),
+                {[Ops1 | Acc], C1}
+            end, {[], Cache}, Rects),
+    {lists:append(lists:reverse(Parts)), Cache1}.
 
 %% One redraw region: fill it with the background, then draw the items that overlap it from last
-%% to first, so the first item ends on top. Clip is true for a dirty rectangle.
-region({X, Y, W, H} = R, Items, Bg, Clip, Cache) ->
-    {Draw, Cache1} = draw_all([I || I <- lists:reverse(Items), overlaps(bbox(I), R)], Cache),
+%% to first, so the first item ends on top. Clip is true for a dirty rectangle. Boxed is
+%% [{Box, Item}], bottom item first.
+region({X, Y, W, H} = R, Boxed, Bg, Clip, Cache) ->
+    {Draw, Cache1} = draw_all([I || {B, I} <- Boxed, overlaps(B, R)], Cache),
     Fill = [{fill_rect, [X, Y, W, H, Bg]}],
     case Clip of
         true -> {[{set_clip_rect, [X, Y, W, H]}] ++ Fill ++ Draw ++ [{clear_clip_rect, []}], Cache1};
@@ -279,11 +350,13 @@ region({X, Y, W, H} = R, Items, Bg, Clip, Cache) ->
     end.
 
 draw_all(Items, Cache) ->
-    lists:foldl(
-        fun(I, {Ops, C}) ->
-            {Ops1, C1} = draw(I, C),
-            {Ops ++ Ops1, C1}
-        end, {[], Cache}, Items).
+    {Parts, Cache1} =
+        lists:foldl(
+            fun(I, {Acc, C}) ->
+                {Ops1, C1} = draw(I, C),
+                {[Ops1 | Acc], C1}
+            end, {[], Cache}, Items),
+    {lists:append(lists:reverse(Parts)), Cache1}.
 
 draw({rect, X, Y, W, H, C}, Cache) ->
     {[{fill_rect, [X, Y, W, H, C]}], Cache};
@@ -349,6 +422,15 @@ merge([R | Rest], Acc) ->
     merge(Rest1, [R1 | Acc1]).
 
 absorb(R, Acc, Rest) ->
+    case any_overlap(R, Acc) orelse any_overlap(R, Rest) of
+        false -> {R, Acc, Rest};
+        true -> absorb_overlapping(R, Acc, Rest)
+    end.
+
+any_overlap(R, [O | T]) -> overlaps(R, O) orelse any_overlap(R, T);
+any_overlap(_R, []) -> false.
+
+absorb_overlapping(R, Acc, Rest) ->
     {InAcc, Acc1} = split(R, Acc, [], []),
     {InRest, Rest1} = split(R, Rest, [], []),
     case InAcc ++ InRest of
@@ -365,6 +447,8 @@ split(R, [O | Rest], In, Out) ->
         false -> split(R, Rest, In, [O | Out])
     end.
 
+cover([B | Bs]) -> lists:foldl(fun union/2, B, Bs).
+
 union({X1, Y1, W1, H1}, {X2, Y2, W2, H2}) ->
     X = min(X1, X2), Y = min(Y1, Y2),
     {X, Y, max(X1 + W1, X2 + W2) - X, max(Y1 + H1, Y2 + H2) - Y}.
@@ -372,9 +456,4 @@ union({X1, Y1, W1, H1}, {X2, Y2, W2, H2}) ->
 area(Rects) -> lists:foldl(fun({_, _, W, H}, A) -> A + W * H end, 0, Rects).
 
 %% L minus one occurrence of each element of R (multiset difference; no -- on AtomVM).
-subtract(L, []) -> L;
-subtract(L, [X | Xs]) -> subtract(delete(X, L), Xs).
 
-delete(_X, []) -> [];
-delete(X, [X | T]) -> T;
-delete(X, [H | T]) -> [H | delete(X, T)].
