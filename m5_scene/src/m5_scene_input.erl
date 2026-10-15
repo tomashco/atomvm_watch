@@ -21,9 +21,15 @@ start_link(Opts) ->
 poll(Pid) ->
     gen_server:call(Pid, poll).
 
-init(#{buttons := B, poll_ms := Ms}) ->
+%% A button's flags are read for ?ACTIVE_MS after its last change (M5Unified's last_change): long
+%% enough for its hold (500 ms by default) and click decisions. Reading every flag of every button on
+%% each poll cost a few milliseconds every 10 ms on the watch.
+-define(ACTIVE_MS, 2000).
+
+init(#{buttons := B, poll_ms := Ms} = Opts) ->
     schedule(Ms),
-    {ok, #{buttons => B, poll_ms => Ms, subs => []}}.
+    {ok, #{buttons => B, poll_ms => Ms, subs => [], active_ms => maps:get(active_ms, Opts, ?ACTIVE_MS),
+           changes => #{}}}.
 
 handle_call({subscribe_input}, {Pid, _Tag}, #{subs := Subs} = S) ->
     case lists:keymember(Pid, 1, Subs) of
@@ -34,15 +40,14 @@ handle_call({subscribe_input}, {Pid, _Tag}, #{subs := Subs} = S) ->
             {reply, ok, S#{subs := [{Pid, Ref} | Subs]}}
     end;
 handle_call(poll, _From, S) ->
-    do_poll(S),
-    {reply, ok, S};
+    {reply, ok, do_poll(S)};
 handle_call(_Msg, _From, S) ->
     {reply, {error, unknown_call}, S}.
 
 handle_info(poll, #{poll_ms := Ms} = S) ->
-    do_poll(S),
+    S1 = do_poll(S),
     schedule(Ms),
-    {noreply, S};
+    {noreply, S1};
 handle_info({'DOWN', Ref, process, _Pid, _Reason}, #{subs := Subs} = S) ->
     {noreply, S#{subs := lists:keydelete(Ref, 2, Subs)}};
 handle_info(_Msg, S) ->
@@ -50,11 +55,28 @@ handle_info(_Msg, S) ->
 
 handle_cast(_Msg, S) -> {noreply, S}.
 
-do_poll(#{buttons := B, subs := Subs}) ->
+%% changes: #{Name => {LastChange, SeenAt}}, the button's last_change value and the monotonic time
+%% this server first saw it.
+do_poll(#{buttons := B, subs := Subs, active_ms := Active, changes := Changes} = S) ->
     B:update(),
-    Events = [{button, Name, Ev} || Name <- ?BUTTONS, {Query, Ev} <- ?STATES, B:read(Name, Query)],
+    Now = erlang:monotonic_time(millisecond),
+    Changes1 = lists:foldl(fun(Name, Acc) -> seen(Name, B:last_change(Name), Now, Acc) end, Changes, ?BUTTONS),
+    Events = [{button, Name, Ev} || Name <- ?BUTTONS, active(Name, Changes1, Now, Active),
+                                    {Query, Ev} <- ?STATES, B:read(Name, Query)],
     Ts = erlang:system_time(millisecond),
-    lists:foreach(fun(E) -> [Pid ! {input_event, self(), Ts, E} || {Pid, _} <- Subs] end, Events).
+    lists:foreach(fun(E) -> [Pid ! {input_event, self(), Ts, E} || {Pid, _} <- Subs] end, Events),
+    S#{changes := Changes1}.
+
+seen(Name, LastChange, Now, Changes) ->
+    case maps:find(Name, Changes) of
+        {ok, {LastChange, _}} -> Changes;
+        _ -> maps:put(Name, {LastChange, Now}, Changes)
+    end.
+
+%% The first value seen counts as a change, so every button is read for Active after start.
+active(Name, Changes, Now, Active) ->
+    {_, SeenAt} = maps:get(Name, Changes),
+    Now - SeenAt < Active.
 
 schedule(infinity) -> ok;
 schedule(Ms) -> erlang:send_after(Ms, self(), poll), ok.

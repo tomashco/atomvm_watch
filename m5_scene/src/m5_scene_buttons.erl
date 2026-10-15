@@ -1,8 +1,13 @@
 %% The default button module: static calls into atomvm_m5 (see m5_scene_m5 for why static).
 -module(m5_scene_buttons).
--export([update/0, read/2]).
+-export([update/0, read/2, last_change/1]).
 
 update() -> m5:update().
+
+%% M5Unified's time of the button's last state change (pressed or released).
+last_change(a) -> m5_btn_a:last_change();
+last_change(b) -> m5_btn_b:last_change();
+last_change(pwr) -> m5_btn_pwr:last_change().
 
 read(a, Q) -> a(Q);
 read(b, Q) -> b(Q);

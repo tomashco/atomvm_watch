@@ -61,6 +61,44 @@ input_test_() ->
         end} end
     ]}.
 
+%% Reading every flag of every button on each poll cost a few milliseconds every 10 ms on the watch:
+%% a button's flags are read only for active_ms after its last change.
+active_window_test_() ->
+    {setup,
+     fun() ->
+         m5_scene_fake_buttons:new(),
+         {ok, P} = m5_scene_input:start_link(#{buttons => m5_scene_fake_buttons, poll_ms => infinity,
+                                               active_ms => 100}),
+         P
+     end,
+     fun cleanup/1,
+     fun(P) -> fun() ->
+         ok = gen_server:call(P, {subscribe_input}),
+         %% Every button is read for active_ms after start, then not any more.
+         poll_flags(P, []),
+         ?assertEqual(15, m5_scene_fake_buttons:reads()),
+         timer:sleep(150),
+         ?assertEqual([], poll_flags(P, [{b, was_hold}])),
+         ?assertEqual(15, m5_scene_fake_buttons:reads()),
+         %% A press is read, and a hold flag set later, without a change, still is.
+         ?assertEqual([{button, a, pressed}], poll(P, [{a, was_pressed}])),
+         ?assertEqual([{button, a, hold}], poll_flags(P, [{a, was_hold}])),
+         %% Only the changed button is read: 5 flags per poll.
+         Reads = m5_scene_fake_buttons:reads(),
+         poll_flags(P, []),
+         ?assertEqual(Reads + 5, m5_scene_fake_buttons:reads()),
+         %% After active_ms without a change, it is not read any more.
+         timer:sleep(150),
+         Reads1 = m5_scene_fake_buttons:reads(),
+         ?assertEqual([], poll_flags(P, [{a, was_hold}])),
+         ?assertEqual(Reads1, m5_scene_fake_buttons:reads())
+     end end}.
+
+poll_flags(P, States) ->
+    m5_scene_fake_buttons:set_flags(States),
+    ok = m5_scene_input:poll(P),
+    events(P).
+
 timer_polls_by_itself_test() ->
     m5_scene_fake_buttons:new(),
     m5_scene_fake_buttons:set([{pwr, was_pressed}]),

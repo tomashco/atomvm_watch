@@ -79,7 +79,9 @@ Each subscriber gets `{input_event, InputPid, Ts, Event}`, with `Ts` from
 | `was_clicked` | `{button, Name, click}` |
 | `was_double_clicked` | `{button, Name, double_click}` |
 
-Within one poll, events come in the order of the table. `click` is sent at the release of a short
+Each poll reads a button's states only for 2 seconds after its last press or release (and for
+2 seconds after start), which covers the hold threshold and the click decisions; idle buttons cost
+one call each. Within one poll, events come in the order of the table. `click` is sent at the release of a short
 press; `double_click` comes after the second press's `click`; a hold sends `hold` and no `click`.
 
 ## Moving to AtomGL later
