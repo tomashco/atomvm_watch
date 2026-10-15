@@ -7,3 +7,7 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 # AtomVM's i2c driver uses the legacy IDF I2C driver, M5GFX the new one (i2c_master). IDF 5.5
 # aborts at boot when both are linked unless this check is skipped. They must not share a port.
 CONFIG_I2C_SKIP_LEGACY_CONFLICT_CHECK=y
+# AtomVM's release defaults (sdkconfig.release-defaults.in): without them IDF builds with -Og and
+# assertions on, and the VM runs several times slower.
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT=y
