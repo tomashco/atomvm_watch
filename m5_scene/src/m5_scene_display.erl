@@ -7,7 +7,18 @@
 
 %% Opts: #{display := module(), width := integer(), height := integer(), background := integer()}.
 start_link(Opts) ->
-    gen_server:start_link(?MODULE, Opts, []).
+    case erlang:system_info(machine) of
+        "ATOM" ->
+            %% AtomVM's default heap growth garbage-collects every few dozen words, copying the whole
+            %% heap: on the watch that was most of a frame. fibonacci grows the heap like OTP; its
+            %% larger heaps need the firmware's PSRAM (without it, a heap step can need a block larger
+            %% than any free one, and AtomVM aborts). gen_server ignores start options on AtomVM, so it
+            %% is started through proc_lib.
+            proc_lib:start_link(gen_server, init_it, [self(), ?MODULE, Opts, []], infinity,
+                                [{atomvm_heap_growth, fibonacci}]);
+        _ ->
+            gen_server:start_link(?MODULE, Opts, [])
+    end.
 
 call(Pid, Msg) ->
     gen_server:call(Pid, Msg, infinity).

@@ -6,7 +6,7 @@ AtomVM (`ATOMVM_VERSION` in `versions.env`) plus the `atomvm_m5` ESP-IDF compone
 | File | Purpose |
 | --- | --- |
 | `partitions.csv` | 8 MB table. `boot.avm` at 0x1D0000, `main.avm` at 0x250000 (the installer's `appOffset`). Checked by `firmware/check_partitions.py`. |
-| `sdkconfig.m5stickc_plus2` | sdkconfig overrides: 8 MB flash, custom table, I2C legacy conflict check skipped (see below). PSRAM stays off. |
+| `sdkconfig.m5stickc_plus2` | sdkconfig overrides: 8 MB flash, custom table, I2C legacy conflict check skipped (see below), AtomVM's release optimization, CPU at 240 MHz, flash in QIO at 80 MHz, the 2 MB PSRAM (allocations from 16 KB up), minimum chip revision 3 (no PSRAM cache workaround). Each was measured on the watch; see `docs/device-checklist.md`. |
 | `patches/0001-get_board-stick_cplus2.patch` | Makes `m5:get_board/0` return `stick_cplus2` on this board. |
 | `patches/0002-display-text-color-push-image.patch` | Adds `m5_display:set_text_color/2` and `m5_display:push_image/5` (used by `m5_scene`). |
 | `manifest.template.json` | Template for the web installer's `FirmwareManifest`. Image at 0x1000. |

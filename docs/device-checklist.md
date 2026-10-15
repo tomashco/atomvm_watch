@@ -31,6 +31,24 @@ Needs the watch on USB and a Chrome or Edge browser. Record results in
 - [x] Works on battery.
 - Power does nothing in this example: it binds only A and B (verified 2026-10-15, firmware from CI run 38535990143).
 
+- [ ] Re-check the menu and detail screens on the firmware with PSRAM (CI run 38707497018).
+
+## Firmware and `m5_scene` performance (measured 2026-10-15)
+
+`examples/nyan` (a sprite, a rainbow trail of up to 60 rectangles and twinkling stars, a 50 ms tick)
+on the watch, with frame timing printed over serial. Runs differ in length, so frames per second.
+
+| Firmware | `m5_scene` | Frames per second | Notes |
+| --- | --- | --- | --- |
+| IDF debug build (-Og), 160 MHz, flash DIO 40 MHz | before the image cache kept dropped images | under 1 | each sprite frame converted again every other frame, 5 s each |
+| release optimization, 160 MHz, DIO 40 MHz | image cache, `fibonacci` heap | 1.2 | 49 frames in 40 s |
+| as above, 240 MHz | same | 1.4 | CPU clock alone barely helps: code runs from flash |
+| 240 MHz, flash QIO 80 MHz | image cache as one binary, default heap | 1.5 | 110 frames in 75 s; `fibonacci` aborted without PSRAM |
+| same | fewer allocations per frame, input window | 3.7 | 281 frames in 75 s |
+| same, with PSRAM | same | 3.3 | 245 frames in 75 s |
+| same, with PSRAM | display server with `fibonacci` heap | 5.3 | 399 frames in 75 s; 1316 in 4 minutes, no abort |
+| PSRAM at 80 MHz | same | 5.4 | 408 frames in 75 s, within noise, not kept |
+
 ## Web installer
 
 - [ ] Open `https://tomashco.github.io/atomvm_watch/?avm=./fixtures/clock.avm` (the plain URL starts empty), the emulator runs the clock.

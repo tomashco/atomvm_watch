@@ -4,7 +4,8 @@
 through `atomvm_m5`'s `m5_display`. It provides the two processes `avm_scene` needs: a display
 server, which diffs each display list against the previous one and redraws only the changed areas,
 and an input server, which polls the buttons. The same app runs in the browser emulator and on the
-watch (with the firmware that has patch `0002`, see `firmware/m5stickc_plus2/README.md`).
+watch with this repository's firmware (`firmware/m5stickc_plus2/README.md`): it needs patch `0002`
+for two display functions, and the PSRAM the firmware enables for the display server's heap.
 
 ```elixir
 :m5.begin_([])
@@ -60,7 +61,8 @@ Differences from AtomGL:
 Images are converted to RGB565 one row at a time, and the result stays cached while the image is
 in the display list: W×H×2 bytes per image (64 KB for a full 240×135 screen). Images that leave the
 list stay cached too, most recently shown first, up to 32 KB, so the frames of an animation are
-converted once. The watch has no PSRAM, so keep large images few.
+converted once. Allocations from 16 KB up go to the watch's 2 MB PSRAM, which is slower than internal
+RAM.
 
 Invalid items are skipped and logged (at most three lines per frame, then a count). A display list
 that is not a proper list is rejected with `{error, invalid_display_list}` and the previous frame
