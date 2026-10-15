@@ -13,3 +13,5 @@ CONFIG_COMPILER_OPTIMIZATION_PERF=y
 CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT=y
 # The ESP32-PICO-V3-02 is rated for 240 MHz; IDF defaults to 160.
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+# Code and BEAM files run from flash through a 32 KB cache: misses dominate the interpreter.
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
