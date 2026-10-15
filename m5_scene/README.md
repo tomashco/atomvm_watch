@@ -58,8 +58,9 @@ Differences from AtomGL:
   Shape edges can differ by a pixel from AtomGL's.
 
 Images are converted to RGB565 one row at a time, and the result stays cached while the image is
-in the display list: W×H×2 bytes per image (64 KB for a full 240×135 screen). The watch has no
-PSRAM, so keep large images few.
+in the display list: W×H×2 bytes per image (64 KB for a full 240×135 screen). Images that leave the
+list stay cached too, most recently shown first, up to 32 KB, so the frames of an animation are
+converted once. The watch has no PSRAM, so keep large images few.
 
 Invalid items are skipped and logged (at most three lines per frame, then a count). A display list
 that is not a proper list is rejected with `{error, invalid_display_list}` and the previous frame

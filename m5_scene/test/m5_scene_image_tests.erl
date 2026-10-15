@@ -39,7 +39,7 @@ cache_reuses_conversion_test() ->
     ?assertEqual(1, map_size(C1)),
     %% Replace the entry with a sentinel: the next call must use it instead of converting again.
     [Key] = maps:keys(C1),
-    {Ops, _} = m5_scene_image:ops(I, C1#{Key := [{0, 0, 1, 1, <<"cached">>}]}),
+    {Ops, _} = m5_scene_image:ops(I, C1#{Key := {[{0, 0, 1, 1, <<"cached">>}], 6, 0}}),
     ?assertEqual([{push_image, [0, 0, 1, 1, <<"cached">>]}], Ops).
 
 moved_image_shares_the_cache_entry_test() ->
@@ -49,13 +49,39 @@ moved_image_shares_the_cache_entry_test() ->
     ?assertEqual(C1, C2),
     ?assertMatch([{push_image, [50, 60, 1, 1, _]}], Ops).
 
-retain_keeps_only_listed_images_test() ->
+retain_with_no_budget_keeps_only_listed_images_test() ->
     A = v({image, 0, 0, 0, {rgba8888, 1, 1, <<1, 2, 3, 255>>}}),
     B = v({image, 0, 0, 0, {rgba8888, 1, 1, <<4, 5, 6, 255>>}}),
     {_, C1} = m5_scene_image:ops(A, #{}),
     {_, C2} = m5_scene_image:ops(B, C1),
     ?assertEqual(2, map_size(C2)),
-    ?assertEqual(C1, m5_scene_image:retain(C2, [A])).
+    ?assertEqual(C1, m5_scene_image:retain(C2, [A], 0)).
+
+%% An animation alternates between frames: the frame not shown must stay converted.
+retain_keeps_a_dropped_image_within_the_budget_test() ->
+    A = v({image, 0, 0, 0, {rgba8888, 1, 1, <<1, 2, 3, 255>>}}),
+    B = v({image, 0, 0, 0, {rgba8888, 1, 1, <<4, 5, 6, 255>>}}),
+    {_, C1} = m5_scene_image:ops(A, #{}),
+    {_, C2} = m5_scene_image:ops(B, C1),
+    C3 = m5_scene_image:retain(C2, [A]),
+    ?assertEqual(2, map_size(C3)),
+    %% B is still cached: drawing it again uses the entry (sentinel) instead of converting.
+    [KB] = maps:keys(C3) -- maps:keys(C1),
+    {Ops, _} = m5_scene_image:ops(B, C3#{KB := {[{0, 0, 1, 1, <<"cached">>}], 6, 0}}),
+    ?assertEqual([{push_image, [0, 0, 1, 1, <<"cached">>]}], Ops).
+
+%% Dropped images are kept most recently used first, up to the budget in bytes of RGB565 data.
+retain_drops_the_least_recently_used_beyond_the_budget_test() ->
+    [A, B, C] = [v({image, 0, 0, 0, {rgba8888, 1, 1, <<N, 0, 0, 255>>}}) || N <- [1, 2, 3]],
+    {_, C1} = m5_scene_image:ops(A, #{}),
+    C2 = m5_scene_image:retain(C1, [A], 2),           % frame 1 shows A
+    {_, C3} = m5_scene_image:ops(B, C2),
+    C4 = m5_scene_image:retain(C3, [B], 2),           % frame 2 shows B; A kept (2 bytes)
+    ?assertEqual(2, map_size(C4)),
+    {_, C5} = m5_scene_image:ops(C, C4),
+    C6 = m5_scene_image:retain(C5, [C], 2),           % frame 3 shows C; only B fits the budget
+    {_, OnlyB} = m5_scene_image:ops(B, m5_scene_image:retain(C5, [C], 0)),
+    ?assertEqual(lists:sort(maps:keys(OnlyB)), lists:sort(maps:keys(C6))).
 
 scaled_image_samples_the_source_test() ->
     %% Source 2x1: red, green. Scale 2 gives 4x2: R R G G on both rows.

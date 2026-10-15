@@ -1,7 +1,11 @@
 %% RGBA8888 images to RGB565 push_image operations, with a cache so an image that stays in the
 %% display list is converted once. Pure functions.
 -module(m5_scene_image).
--export([ops/2, is_image/1, retain/2, rgb565/3, blend/3]).
+-export([ops/2, is_image/1, retain/2, retain/3, rgb565/3, blend/3]).
+
+%% Bytes of RGB565 data kept for images that left the display list, so an animation's frames are
+%% converted once and not every time they come back.
+-define(KEEP_BYTES, 32768).
 
 is_image(Item) -> element(1, Item) =:= image orelse element(1, Item) =:= scaled.
 
@@ -11,29 +15,44 @@ key({image, _X, _Y, Bg, W, H, Px}) ->
 key({scaled, _X, _Y, W, H, Bg, SX, SY, XS, YS, FX, FY, IW, Px}) ->
     {scaled, W, H, Bg, SX, SY, XS, YS, FX, FY, IW, Px}.
 
-%% push_image operations for an image item, and the cache with its entry added.
+%% push_image operations for an image item, and the cache with its entry added. An entry is
+%% {Runs, Bytes, Age}: Age counts the frames since the image was last in the display list.
 ops(Item, Cache) ->
     Key = key(Item),
-    Runs =
+    Entry =
         case maps:find(Key, Cache) of
-            {ok, R} -> R;
-            error -> convert(Item)
+            {ok, E} -> E;
+            error ->
+                Runs = convert(Item),
+                {Runs, lists:foldl(fun({_, _, _, _, B}, N) -> N + byte_size(B) end, 0, Runs), 0}
         end,
     X = element(2, Item),
     Y = element(3, Item),
-    {[{push_image, [X + DX, Y + DY, W, H, Bin]} || {DX, DY, W, H, Bin} <- Runs],
-     maps:put(Key, Runs, Cache)}.
+    {[{push_image, [X + DX, Y + DY, W, H, Bin]} || {DX, DY, W, H, Bin} <- element(1, Entry)],
+     maps:put(Key, Entry, Cache)}.
 
-%% The cache restricted to the given image items' entries.
 retain(Cache, Images) ->
-    lists:foldl(
-        fun(I, Acc) ->
-            K = key(I),
-            case maps:find(K, Cache) of
-                {ok, V} -> maps:put(K, V, Acc);
-                error -> Acc
-            end
-        end, #{}, Images).
+    retain(Cache, Images, ?KEEP_BYTES).
+
+%% The cache after a frame showing Images: their entries, plus the entries of images no longer
+%% shown, most recently shown first, while their bytes fit in Budget.
+retain(Cache, Images, Budget) ->
+    Shown = lists:foldl(
+              fun(I, Acc) ->
+                  K = key(I),
+                  case maps:find(K, Cache) of
+                      {ok, {Runs, Bytes, _}} -> maps:put(K, {Runs, Bytes, 0}, Acc);
+                      error -> Acc
+                  end
+              end, #{}, Images),
+    Dropped = lists:sort([{Age, K, E} || {K, {_, _, Age} = E} <- maps:to_list(Cache),
+                                         not maps:is_key(K, Shown)]),
+    keep(Dropped, Budget, Shown).
+
+keep([{Age, K, {Runs, Bytes, _}} | Rest], Budget, Acc) when Bytes =< Budget ->
+    keep(Rest, Budget - Bytes, maps:put(K, {Runs, Bytes, Age + 1}, Acc));
+keep(_, _Budget, Acc) ->
+    Acc.
 
 %% Converted one row at a time, walking the RGBA bytes with binary matching: the watch has no PSRAM,
 %% and a term per pixel for a whole image would not fit in its heap.

@@ -110,9 +110,18 @@ image_ops_come_from_m5_scene_image_test() ->
     ?assertMatch([_, _, {push_image, [3, 4, 1, 1, <<16#F8, 0>>]}, {end_write, []}],
                  first([{image, 3, 4, 0, {rgba8888, 1, 1, <<255, 0, 0, 255>>}}])).
 
-plan_keeps_cache_only_for_current_images_test() ->
+plan_keeps_a_dropped_image_cached_test() ->
     Img = {image, 0, 0, 0, {rgba8888, 1, 1, <<1, 2, 3, 255>>}},
     {_, C1} = m5_scene_render:plan(none, v([Img]), ?S, #{}),
     ?assertEqual(1, map_size(C1)),
     {_, C2} = m5_scene_render:plan(v([Img]), v([]), ?S, C1),
-    ?assertEqual(0, map_size(C2)).
+    ?assertEqual(1, map_size(C2)).
+
+%% Two animation frames shown in turn are each converted once.
+plan_alternating_frames_keeps_both_cached_test() ->
+    A = {image, 0, 0, transparent, {rgba8888, 1, 1, <<1, 2, 3, 255>>}},
+    B = {image, 0, 0, transparent, {rgba8888, 1, 1, <<4, 5, 6, 255>>}},
+    {_, C1} = m5_scene_render:plan(none, v([A]), ?S, #{}),
+    {_, C2} = m5_scene_render:plan(v([A]), v([B]), ?S, C1),
+    {_, C3} = m5_scene_render:plan(v([B]), v([A]), ?S, C2),
+    ?assertEqual(2, map_size(C3)).

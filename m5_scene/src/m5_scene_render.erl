@@ -223,7 +223,8 @@ line_pad(T) -> (T - 1) div 2 + 1.
 
 %% The operations that turn the previous frame Old (validated items, or none before the first
 %% frame) into New on a W x H screen with background Bg. Returns {Ops, Cache1}: Ops is a list of
-%% {Function, Args} for the display module, Cache1 the image cache restricted to New's images.
+%% {Function, Args} for the display module, Cache1 the image cache
+%% for New's images plus recently shown ones (m5_scene_image:retain/2).
 plan(Same, Same, _Screen, Cache) ->
     {[], Cache};
 plan(Old, New, {W, H, Bg}, Cache) ->
