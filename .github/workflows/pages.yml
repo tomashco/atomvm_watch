@@ -60,7 +60,15 @@ jobs:
         run: |
           set -euo pipefail
           url="${{ steps.deploy.outputs.page_url }}"
-          check() { code=$(curl -sS -o /dev/null -w '%{http_code}' "$1"); echo "$code $1"; [ "$code" = 200 ]; }
+          # New files can 404 for a short while after deploy-pages returns, until the CDN catches up.
+          check() {
+            for _ in $(seq 12); do
+              code=$(curl -sS -o /dev/null -w '%{http_code}' "$1" || true); echo "$code $1"
+              [ "$code" = 200 ] && return 0
+              sleep 10
+            done
+            return 1
+          }
           check "$url"
           check "${url}fixtures/clock.avm"
           curl -fsSI "${url}atomvm/AtomVM.wasm" | grep -i 'content-type: application/wasm'
