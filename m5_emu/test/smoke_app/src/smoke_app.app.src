@@ -1,0 +1,1 @@
+{application, smoke_app, [{description, "m5_emu smoke"}, {vsn, "0.1.0"}, {applications, [kernel, stdlib]}]}.

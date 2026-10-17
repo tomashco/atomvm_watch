@@ -1,0 +1,2 @@
+{ "version": "@VERSION@", "chip": "ESP32", "atomvm": "@ATOMVM@",
+  "parts": [ { "path": "@IMG@", "offset": 4096 } ], "appOffset": 2424832 }

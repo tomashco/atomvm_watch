@@ -1,0 +1,5 @@
+{application, m5_emu, [
+    {description, "atomvm_m5 API for AtomVM's emscripten platform"},
+    {vsn, "0.1.0"}, {registered, [m5_emu_input, m5_emu_display]},
+    {applications, [kernel, stdlib]}, {env, []}, {licenses, ["Apache-2.0"]}
+]}.

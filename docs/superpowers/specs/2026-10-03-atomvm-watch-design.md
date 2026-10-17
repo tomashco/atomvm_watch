@@ -17,7 +17,7 @@ and the app to a watch over USB, and an Elixir example proves the full loop.
 Milestone 2 (separate spec, later): an on-device loader that lists, starts and receives multiple
 apps, and an installer that adds apps without reflashing the others.
 
-Out of scope for milestone 1: IMU, RTC, battery reading, HOLD pin, microphone, IR, Wi-Fi,
+Out of scope for milestone 1: IMU, battery reading, HOLD pin, microphone, IR, Wi-Fi,
 AtomGL/avm_scene display stack, a C/Emscripten port of the NIFs (see section 11).
 
 ## 2. Context and facts the design relies on
@@ -32,6 +32,10 @@ Verified against upstream sources on 2026-10-03:
 - The wasm platform's `sys_create_port` returns NULL: no ports exist in the browser VM.
 - AtomVM resolves a module from the first loaded `.avm` pack that contains it (packs are
   appended in load order). Loading our pack before the app's pack shadows same-named modules.
+- AtomVM's wasm release ships no standard library, so `atomvmlib.avm` (the `emscripten` build's
+  libs target) is built from AtomVM source at `ATOMVM_VERSION` by `scripts/build-atomvmlib.sh`.
+  It is loaded between `m5_emu.avm` and the app; the first pack wins on name conflicts, so our
+  `gpio` shim still shadows the one in atomvmlib. The smoke and e2e tests prove this.
 - `atomvm_m5` (pguyot) wraps M5Unified 0.2.10 and M5GFX 0.2.17 as NIFs for the ESP32 build:
   modules `m5`, `m5_display`, `m5_btn_{a,b,c,pwr,ext}`, `m5_speaker`, `m5_power`,
   `m5_power_axp192`, `m5_rtc`, `m5_imu`, `m5_i2c`. Its `src/*.erl` are stubs that throw
@@ -60,8 +64,8 @@ Four deliverables share one repository:
 2. `m5_emu/` — an Erlang library whose modules have the exact names and arities of `atomvm_m5`
    and are implemented for the `emscripten` platform by forwarding to JavaScript. Packed as
    `m5_emu.avm`. Board-specific values (screen size, board atom, which buttons exist) are
-   passed in at `m5:begin_/1` time by the page from the profile; the library has no board
-   constants.
+   passed in at `m5:begin_/1` time by the page from the profile (the `m5emu.boardReady()` call
+   and the `board:<atom>:<w>:<h>` cast, see 4.1); the library has no board constants.
 3. `web/` — a static page: the AtomVM wasm VM, the display renderer and device controls, and a
    Web Serial installer, all configured from the selected board profile. Hosted on GitHub
    Pages, also served locally.
@@ -83,8 +87,9 @@ loaded first and shadows the stubs. Apps never contain platform conditionals.
 Data flow in the browser:
 
 ```
-app .avm ──┐
-m5_emu.avm ┴─> AtomVM-web.wasm (worker thread)
+app .avm ──────┐
+atomvmlib.avm ─┤  (load order: m5_emu.avm, atomvmlib.avm, app)
+m5_emu.avm ────┴─> AtomVM-web.wasm (worker thread)
                  │  emscripten:run_script("m5emu.exec([...])")   drawing, tone, led
                  ▼
             web/src/m5emu.js (main thread) ──> <canvas>, WebAudio, DOM
@@ -96,15 +101,16 @@ m5_emu.avm ┴─> AtomVM-web.wasm (worker thread)
 ## 4. `m5_emu` — Erlang side
 
 Rebar3 library, Erlang only, so Elixir and Gleam apps use it unchanged. Target AtomVM version
-is pinned in one place (`ATOMVM_VERSION` in `mise.toml`) and must match the wasm binary and the
-firmware.
+is pinned in one place (`ATOMVM_VERSION` in `versions.env`, next to the `atomvm_m5` commit) and
+must match the wasm binary, `atomvmlib.avm` and the firmware.
 
 ### 4.1 Module surface
 
 Same module names as `atomvm_m5`. Milestone 1 implements:
 
 - `m5`: `begin_/1` (starts the emulator processes, resets display state, registers
-  `m5_emu_input`, reads the board profile values the page stored in the VM environment),
+  `m5_emu_input`, calls `m5emu.boardReady()` and waits for the page's `board:<atom>:<w>:<h>` cast
+  carrying the board profile values; AtomVM's wasm build has no VM environment variables),
   `get_board/0` (returns the profile's board atom, `stick_cplus2` for the first board, matching `atomvm_m5`'s `stick_cplus` naming),
   `update/0` (drains input events, advances button state machines).
 - `m5_display`: the drawing and text subset listed in 4.3, plus `width/0`, `height/0`,
@@ -165,6 +171,12 @@ time recorded locally, so it needs no round trip. The red LED is driven by apps 
 `digital_write/2` and `digital_read/1` for pin 19 only, forwarding `led on|off`. Other pins
 return `{error, unsupported}`. Battery level arrives as `batt:N` casts.
 
+Added after milestone 1 shipped, so that atomvm_m5's `how_to_use` example runs:
+`m5_speaker:play_raw_u8/s8/s16` (all arities, NIF defaults: 44100 Hz, mono, repeat 1; repeat 0
+loops until `stop/0`) sends `play_raw fmt base64 rate stereo repeat vol`, which the page plays
+through a WebAudio buffer; `is_playing/0` covers it. `m5_rtc` is enabled and emulated from the
+host's UTC clock plus an offset that `set_datetime/date/time` adjust, so a set time keeps ticking.
+
 ## 5. `web/` — browser side
 
 Vite project, plain TypeScript, no framework. Files:
@@ -174,10 +186,11 @@ Vite project, plain TypeScript, no framework. Files:
 - `src/board.ts`: loads `boards/<id>/board.json` (from `?board=`, default `m5stickc_plus2`),
   validates it, and hands it to the renderer (screen size), input (button list and shortcuts),
   the device frame (SVG with button hotspots), and the installer (chip id, firmware manifest).
-  It also passes screen size and board atom to the VM as environment variables that
-  `m5:begin_/1` reads.
+  It also answers `m5emu.boardReady()` (called by `m5:begin_/1`) by casting
+  `board:<atom>:<w>:<h>` to the VM.
 - `src/vm.ts`: instantiates the AtomVM module, registers stdout/stderr to the console pane,
-  loads `m5_emu.avm` then the app `.avm` into the VM's filesystem and starts `main`.
+  loads `m5_emu.avm`, then `atomvmlib.avm`, then the app `.avm` into the VM's filesystem and
+  starts `main`.
 - `src/m5emu.ts`: the renderer. A 135x240 offscreen framebuffer drawn to a visible canvas at
   3x (configurable). Implements the commands in 4.3 with M5GFX semantics: rotation 0–3 swaps
   width and height and transforms coordinates; text cursor advances and wraps the way
@@ -186,16 +199,18 @@ Vite project, plain TypeScript, no framework. Files:
   LovyanGFX (MIT/BSD-compatible), ported to a data file.
 - `src/input.ts`: on-screen buttons A, B and power, keyboard shortcuts (`A`, `B`, `P`), a
   battery slider. Sends `Module.cast("m5_emu_input", ...)`.
-- `src/audio.ts`: WebAudio square-wave tone with volume.
+- `src/audio.ts`: WebAudio square-wave tone with volume, and raw PCM playback (u8, s8, s16).
 - `src/loader.ts`: drag-and-drop, file picker and `?avm=<url>` loading; keeps the last app in
   IndexedDB so a reload restarts it.
 - `src/installer.ts`: Web Serial via `esptool-js`. Two buttons: **Install runtime** writes the
-  full image from `firmware/` releases at offset 0; **Install app** writes the loaded `.avm` at
+  full image at `0x1000` (the image and manifest are mirrored into the Pages site under
+  `firmware/`, because GitHub release downloads lack CORS headers and COEP blocks them); **Install app** writes the loaded `.avm` at
   `0x250000`. Progress and the device's serial log go to the console pane. Hidden when the
   browser lacks `navigator.serial`.
 
 The page never modifies the wasm binary; `scripts/fetch-atomvm.sh` downloads it from the AtomVM release matching
 `ATOMVM_VERSION`, verifies its sha256, and places it under `web/public/atomvm/` (gitignored, fetched at setup and in CI).
+`atomvmlib.avm` is built beside it by `scripts/build-atomvmlib.sh`.
 
 ## 6. `firmware/`
 
@@ -218,12 +233,13 @@ Upstream contribution tracked in the plan: add `board_M5StickCPlus2` to `m5:get_
 
 `mix m5.emulate` (Elixir package, dev-only dependency): runs `mix atomvm.packbeam`, starts a
 local static server for `web/dist` with COOP/COEP headers, opens the browser at
-`?avm=http://localhost:<port>/app.avm`, and re-packs on file changes, notifying the page over
-a WebSocket so it reloads the VM. No flashing; `mix atomvm.esp32.flash` already does that.
+`?avm=http://localhost:<port>/app.avm`, and re-packs on file changes. The page polls
+`/__version`, a counter bumped after each successful pack, and reloads the VM when it changes
+(no WebSocket). No flashing; `mix atomvm.esp32.flash` already does that.
 
-`examples/clock/`: exatomvm project depending on `atomvm_m5`. Shows the time from
+`examples/clock/`: exatomvm project depending on `atomvm_m5`. Shows the UTC time from
 `erlang:system_time` since RTC is out of scope, button A cycles three screens, button B beeps
-and toggles the LED, power button sleeps and wakes the display. Runs identically in the
+and toggles the LED, the power button toggles sleep (a press sleeps the display, the next wakes it). Runs identically in the
 emulator and on the watch; it is the acceptance test for milestone 1.
 
 ## 8. Testing
@@ -254,7 +270,7 @@ emulator and on the watch; it is the acceptance test for milestone 1.
 
 ## 10. Milestones
 
-1. Emulator runs `examples/clock`; `mise run dev` works; runtime and app flash from the page;
+1. Emulator runs `examples/clock`; `dev` works in `devenv shell`; runtime and app flash from the page;
    the same app runs on the watch. (This spec.)
 2. App loader: launcher app in `main.avm`, apps stored in the `apps` partition, runtime
    loading with `atomvm:add_avm_pack_binary/2`, installer writes to free slots, emulator
@@ -278,6 +294,6 @@ and device becomes a real problem.
 | `run_script` throughput too low for drawing-heavy loops | Benchmark 1000 `fill_rect` per second in the first emulator task; fall back to a shared binary ring buffer if needed |
 | Module shadowing order differs in a future AtomVM | Node smoke test and E2E test assert `m5:get_board/0` returns `stick_cplus2` under the wasm VM |
 | Font or text wrapping differs from M5GFX | Golden frames compared against photos of the watch for the example screens |
-| `atomvm_m5`, AtomVM wasm and firmware versions drift | Single `ATOMVM_VERSION` plus pinned `atomvm_m5` commit; CI builds all three from them |
+| `atomvm_m5`, AtomVM wasm and firmware versions drift | `versions.env` holds `ATOMVM_VERSION` and the pinned `atomvm_m5` commit; CI builds all three from them |
 | `m5:update/0` busy loop in the browser | Example uses `timer:sleep(10)` like upstream examples; document it |
 | GitHub Pages and the service-worker header trick | Smoke test on the deployed URL in CI |

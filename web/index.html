@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>atomvm_watch</title>
+  <script src="./coi-serviceworker.js"></script>
+</head>
+<body>
+<header><h1>atomvm_watch</h1><span id="board-name"></span></header>
+<main>
+  <section class="device">
+    <div id="stage" class="stage"><div id="frame" class="frame"><canvas id="screen"></canvas><div id="led" class="led"></div></div></div>
+    <div id="controls" class="controls"></div>
+    <button id="rotate" type="button" title="Rotate the device 90° counter-clockwise">↺ Rotate 90°</button>
+  </section>
+  <section class="side">
+    <div id="drop" class="drop">Drop an <code>.avm</code> here, or <label class="pick"><input id="file" type="file" accept=".avm" hidden>choose a file</label></div>
+    <div class="row"><span id="app-name"></span><button id="restart" type="button" hidden>Restart</button></div>
+    <details id="install"><summary>Install to device</summary>
+      <button id="connect" type="button">Connect (Web Serial)</button><span id="chip"></span>
+      <button id="install-runtime" type="button" disabled>Install runtime</button>
+      <button id="install-app" type="button" disabled>Install app</button>
+      <progress id="progress" max="100" value="0" hidden></progress>
+    </details>
+    <pre id="console" class="console"></pre>
+  </section>
+</main>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

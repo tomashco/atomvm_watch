@@ -1,0 +1,26 @@
+# devenv / direnv state (also holds the hex, mix, rebar3, pnpm and Playwright caches)
+.devenv*
+devenv.local.nix
+.direnv/
+
+# local agent and tooling state
+.claude/worktrees/
+.superpowers/
+
+# build outputs and downloaded artifacts
+web/node_modules/
+web/dist/
+web/public/atomvm/
+web/public/boards/
+web/public/m5_emu.avm
+vendor/
+m5_emu_mix/priv/web/
+**/_build/
+**/deps/
+*.avm
+!web/e2e/fixtures/*.avm
+firmware/.work/
+firmware/out/
+web/test-results/
+web/playwright-report/
+web/public/fixtures/

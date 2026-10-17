@@ -1,0 +1,50 @@
+-module(m5_emu_cmd).
+-export([encode/1, exec_script/1, batch_append/2, batch_script/1, to_rgb888/1]).
+
+exec_script(Cmds) -> [<<"m5emu.exec(">>, encode(Cmds), <<")">>].
+
+%% A start_write batch is kept as one binary of comma-joined encoded commands, not as a list of
+%% terms. AtomVM's default heap growth (bounded_free) garbage-collects every few allocations and
+%% each GC copies the live heap, so a 1000-term batch made batching ~13x slower than one run_script
+%% per command. A binary over 64 bytes lives off-heap, so the live heap stays small.
+batch_append(<<>>, Cmd) -> iolist_to_binary(encode_cmd(Cmd));
+batch_append(Batch, Cmd) -> iolist_to_binary([Batch, $, | encode_cmd(Cmd)]).
+
+batch_script(Batch) -> [<<"m5emu.exec([">>, Batch, <<"])">>].
+
+encode(Cmds) -> [$[, join([encode_cmd(C) || C <- Cmds]), $]].
+
+encode_cmd(Cmd) when is_tuple(Cmd) ->
+    [Name | Args] = tuple_to_list(Cmd),
+    [$[, join([str(atom_to_binary(Name, utf8)) | [val(A) || A <- Args]]), $]].
+
+%% {raw_string, Bin}: a string known to need no JSON escaping (e.g. base64), sent as is. Escaping
+%% walks the binary byte by byte, which is costly on AtomVM for audio-sized payloads.
+val({raw_string, B}) when is_binary(B) -> [$", B, $"];
+val(I) when is_integer(I) -> integer_to_binary(I);
+val(F) when is_float(F) -> float_to_binary(F, [{decimals, 4}, compact]);
+val(A) when is_atom(A) -> str(atom_to_binary(A, utf8));
+val(B) when is_binary(B) -> str(B);
+val(L) when is_list(L) -> str(iolist_to_binary(L)).
+
+str(Bin) -> [$", escape(Bin), $"].
+escape(<<>>) -> [];
+escape(<<$", R/binary>>) -> [<<"\\\"">> | escape(R)];
+escape(<<$\\, R/binary>>) -> [<<"\\\\">> | escape(R)];
+escape(<<$\n, R/binary>>) -> [<<"\\n">> | escape(R)];
+escape(<<$\r, R/binary>>) -> [<<"\\r">> | escape(R)];
+escape(<<$\t, R/binary>>) -> [<<"\\t">> | escape(R)];
+escape(<<C, R/binary>>) when C < 16#20 -> [io_lib:format("\\u~4.16.0b", [C]) | escape(R)];
+escape(<<C, R/binary>>) -> [C | escape(R)].
+
+join([]) -> [];
+join([X]) -> [X];
+join([X | Rest]) -> [X, $, | join(Rest)].
+
+to_rgb888(I) when is_integer(I) -> I band 16#FFFFFF;
+to_rgb888({rgb888, I}) -> I band 16#FFFFFF;
+to_rgb888({rgb, {R, G, B}}) -> (R bsl 16) bor (G bsl 8) bor B;
+to_rgb888({rgb565, C}) ->
+    R5 = (C bsr 11) band 16#1F, G6 = (C bsr 5) band 16#3F, B5 = C band 16#1F,
+    R = (R5 bsl 3) bor (R5 bsr 2), G = (G6 bsl 2) bor (G6 bsr 4), B = (B5 bsl 3) bor (B5 bsr 2),
+    (R bsl 16) bor (G bsl 8) bor B.

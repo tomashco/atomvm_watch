@@ -1,0 +1,39 @@
+name: firmware
+on:
+  push:
+    tags: ["firmware-m5stickc_plus2-v*"]
+  pull_request:
+    paths: ["firmware/**", "versions.env", ".github/workflows/firmware.yml"]
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.5.1
+    env:
+      ImageOS: ubuntu22
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load pinned versions
+        run: cat versions.env >> "$GITHUB_ENV"
+      - uses: erlef/setup-beam@v1
+        with: { otp-version: "27", elixir-version: "1.18", rebar3-version: "3.25.1" }
+      - run: apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git cmake gperf zlib1g-dev
+      - run: git config --global --add safe.directory '*'
+      - run: python3 firmware/check_partitions.py firmware/m5stickc_plus2/partitions.csv
+      - name: Build image
+        run: |
+          case "$GITHUB_REF" in refs/tags/firmware-m5stickc_plus2-v*) export FW_VERSION="${GITHUB_REF#refs/tags/firmware-m5stickc_plus2-v}";; esac
+          WORK=/tmp/atomvm firmware/build.sh m5stickc_plus2 "$ATOMVM_VERSION" "$ATOMVM_M5_COMMIT" out
+      - uses: actions/upload-artifact@v4
+        with: { name: firmware-m5stickc_plus2, path: out/* }
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/firmware-m5stickc_plus2-v')
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: firmware-m5stickc_plus2, path: out }
+      - uses: softprops/action-gh-release@v2
+        with: { files: out/* }

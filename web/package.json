@@ -1,0 +1,36 @@
+{
+  "name": "atomvm-watch-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync-boards": "rm -rf public/boards && mkdir -p public && cp -R ../boards public/boards",
+    "predev": "pnpm run sync-boards",
+    "sync-fixtures": "mkdir -p public/fixtures && cp e2e/fixtures/*.avm public/fixtures/",
+    "prebuild": "pnpm run sync-boards && pnpm run sync-fixtures",
+    "pretest": "pnpm run sync-boards",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "postinstall": "cp node_modules/coi-serviceworker/coi-serviceworker.js public/"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.4",
+    "@types/pngjs": "^6.0.5",
+    "ajv": "^8.20.0",
+    "coi-serviceworker": "^0.1.7",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^30.1.2",
+    "pngjs": "^7.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
+  },
+  "dependencies": {
+    "esptool-js": "0.7.0",
+    "idb-keyval": "^6.3.0"
+  }
+}
