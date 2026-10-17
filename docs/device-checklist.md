@@ -51,9 +51,10 @@ on the watch, with frame timing printed over serial. Runs differ in length, so f
 
 ## Web installer
 
-- [ ] Open `https://tomashco.github.io/atomvm_watch/?avm=./fixtures/clock.avm` (the plain URL starts empty), the emulator runs the clock.
-- [ ] Click **Connect**, then **Install runtime** (needs a mirrored firmware release on the site) and,
+- [x] Open `https://tomashco.github.io/atomvm_watch/?avm=./fixtures/clock.avm` (the plain URL starts empty), the emulator runs the clock.
+- [x] Click **Connect**, then **Install runtime** (needs a mirrored firmware release on the site) and,
       on the same serial connection, **Install app**; progress and
-      the serial log appear in the console pane and the watch boots the clock.
+      the serial log appear in the console pane and the watch boots the clock
+      (2026-10-17, release `firmware-m5stickc_plus2-v0.1.0` mirrored on Pages).
 - [x] **Connect** then **Install app** alone (from `dev`, 2026-10-13: under five seconds) (runtime already present) finishes in under five seconds.
-- [ ] Unplugging mid-install shows an error in the console pane and leaves the page usable.
+- [x] Unplugging mid-install shows an error in the console pane and leaves the page usable.

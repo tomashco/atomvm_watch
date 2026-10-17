@@ -69,3 +69,5 @@ device).
 Results (2026-10-13, CI firmware from `8c1fced`, clock flashed with esptool): screens pass,
 beep/LED pass, sleep/wake pass, runs on battery. Web "Install app" from `dev` works and the
 watch restarts into the clock in under five seconds.
+From the Pages site (2026-10-17, release `firmware-m5stickc_plus2-v0.1.0`): Install runtime then
+Install app boots the clock, and unplugging mid-install shows an error and leaves the page usable.
