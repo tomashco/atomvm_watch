@@ -31,7 +31,9 @@ Needs the watch on USB and a Chrome or Edge browser. Record results in
 - [x] Works on battery.
 - Power does nothing in this example: it binds only A and B (verified 2026-10-15, firmware from CI run 38535990143).
 
-- [ ] Re-check the menu and detail screens on the firmware with PSRAM (CI run 38707497018).
+- [x] Re-check the menu and detail screens on the firmware with PSRAM (2026-10-17, firmware from
+      PR #2 CI run 39065272356: boot log shows 2 MB PSRAM found and added to the heap; menu, detail,
+      colours, no flicker and battery all pass).
 
 ## Firmware and `m5_scene` performance (measured 2026-10-15)
 
