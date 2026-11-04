@@ -24,32 +24,12 @@ jobs:
       - run: nix profile install nixpkgs#devenv
       - name: Build the site
         run: devenv shell -- bash -c 'setup && scripts/build-m5-emu.sh && cd web && pnpm build'
-      # Release downloads send no CORS headers, which COEP (require-corp) needs, so the latest
-      # firmware release is mirrored into the site and served same-origin.
-      - name: Mirror the latest firmware release
-        shell: bash
+      # Release downloads send no CORS headers, which COEP (require-corp) needs, so the firmware
+      # releases listed in firmware/m5stickc_plus2/runtimes.json are mirrored into the site.
+      - name: Mirror the firmware releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p web/dist/firmware
-          # Only "no release yet" is a warning; any other gh error (rate limit, auth, network, a
-          # missing asset in an existing release) fails the job.
-          if ! err=$(gh release view --repo "$GITHUB_REPOSITORY" 2>&1 >/dev/null); then
-            if grep -qi 'release not found' <<<"$err"; then
-              echo "::warning::No release exists yet; deploying without firmware (Install runtime will not work)"
-              exit 0
-            fi
-            echo "gh release view failed: $err" >&2
-            exit 1
-          fi
-          gh release download --repo "$GITHUB_REPOSITORY" \
-            --pattern 'manifest-m5stickc_plus2.json' --dir web/dist/firmware --clobber
-          test -f web/dist/firmware/manifest-m5stickc_plus2.json \
-            || { echo "latest release has no manifest-m5stickc_plus2.json" >&2; exit 1; }
-          img=$(python3 -c 'import json;print(json.load(open("web/dist/firmware/manifest-m5stickc_plus2.json"))["parts"][0]["path"])')
-          gh release download --repo "$GITHUB_REPOSITORY" --pattern "$img" --dir web/dist/firmware --clobber
-          test -f "web/dist/firmware/$img"
-          ls -l web/dist/firmware
+        run: scripts/mirror-firmware.sh m5stickc_plus2 web/dist/firmware
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist
@@ -72,6 +52,6 @@ jobs:
           check "$url"
           check "${url}fixtures/clock.avm"
           curl -fsSI "${url}atomvm/AtomVM.wasm" | grep -i 'content-type: application/wasm'
-          if [ -f web/dist/firmware/manifest-m5stickc_plus2.json ]; then
-            check "${url}firmware/manifest-m5stickc_plus2.json"
-          fi
+          check "${url}firmware/manifest-m5stickc_plus2.json"
+          check "${url}firmware/runtimes-m5stickc_plus2.json"
+          check "${url}fixtures/examples.json"

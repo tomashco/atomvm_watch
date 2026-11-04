@@ -1,0 +1,7 @@
+[
+  { "file": "clock.avm", "name": "clock", "description": "Elixir. Clock, buttons and about screens; A cycles them, B beeps and toggles the LED, Power sleeps the display." },
+  { "file": "scenes.avm", "name": "scenes", "description": "Elixir, m5_scene. Menu with a moving highlight; B opens a detail screen, hold A goes back." },
+  { "file": "nyan.avm", "name": "nyan", "description": "Elixir, m5_scene. Animated sprite with a rainbow trail; A pauses, B changes speed." },
+  { "file": "gleam_hello.avm", "name": "gleam_hello", "description": "Gleam, m5_display. Counter; A adds one, B beeps and resets." },
+  { "file": "gleam_scenes.avm", "name": "gleam_scenes", "description": "Gleam, avm_scene. Colour swatches; A selects, B paints the circle, hold A resets." }
+]

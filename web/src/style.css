@@ -29,6 +29,10 @@ main { display: flex; flex-wrap: wrap; gap: 1.5rem; padding: 1.25rem; align-item
 details { background: var(--panel); border-radius: 6px; padding: 0.5rem 0.75rem; }
 details button, details progress { margin: 0.4rem 0.4rem 0 0; }
 summary { cursor: pointer; }
+.pickers { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0.25rem 0.75rem; margin: 0.5rem 0; }
+.pickers[hidden] { display: none; }
+.pickers select { font: inherit; max-width: 100%; }
+.pickers .hint { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 0.875em; }
 .about { color: var(--muted); }
 .about summary { color: var(--fg); }
 .about p, .about ol { margin: 0.5rem 0 0; }

@@ -43,6 +43,7 @@
     },
     "chip": { "type": "string" },
     "firmwareManifest": { "type": "string" },
+    "firmwareRuntimes": { "type": "string", "description": "Optional list of the runtimes the site mirrors (version, description, manifest), for the runtime selector" },
     "appOffset": { "type": "integer", "minimum": 0 },
     "deviceImage": { "type": "string" }
   }

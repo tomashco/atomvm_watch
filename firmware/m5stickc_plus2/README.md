@@ -21,10 +21,12 @@ Upstream PRs for the patches: not opened yet (open `0001` and `0002` against `pg
 and put the URLs here). `0002` is the better upstream candidate: it adds general display functions.
 
 The full manual device procedure with expected observations is `docs/device-checklist.md`.
-The Pages workflow mirrors the latest release's manifest and image into the site (`firmware/`),
-because release downloads lack CORS headers under COEP. The mirror refreshes only on the next push
-to `main` or a manual `workflow_dispatch` of the `pages` workflow, so after publishing a new
-firmware release, run `pages` by hand.
+The Pages workflow (`scripts/mirror-firmware.sh`) mirrors the releases listed in `runtimes.json`
+into the site (`firmware/<version>/`), because release downloads lack CORS headers under COEP. The
+page's runtime selector lists them with their descriptions; the first entry is selected by default
+and is also served as `firmware/manifest-m5stickc_plus2.json`. After publishing a new firmware
+release, add it at the top of `runtimes.json` with a description and merge that to `main` (the
+mirror refreshes only on a push to `main` or a manual run of `pages`).
 
 ## Build
 
