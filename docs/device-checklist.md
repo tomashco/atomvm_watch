@@ -37,9 +37,8 @@ Needs the watch on USB and a Chrome or Edge browser. Record results in
 
 ## Gleam examples (firmware v0.2.0)
 
-- [x] Install runtime from the page installs release `firmware-m5stickc_plus2-v0.2.0`: the boot log
-      shows the release image's ELF SHA256 (`fd92146a3...`), 2 MB PSRAM found, 240 MHz, no errors
-      (2026-11-04).
+- [x] The watch runs release `firmware-m5stickc_plus2-v0.2.0`, the image the site serves: the boot
+      log shows its ELF SHA256 (`fd92146a3...`), 2 MB PSRAM found, 240 MHz, no errors (2026-11-04).
 - [x] `gleam_hello` (built with `scripts/build-gleam-example.sh`), installed from the page: the
       counter, A adds one, B beeps and resets (2026-11-04).
 - [x] `gleam_scenes`, installed from the page: swatches, A moves the frame, B paints the circle,
