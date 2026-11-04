@@ -43,7 +43,8 @@ No spec or plan yet.
 
 - More M5 boards (Core2 first) as new board profiles and firmware directories.
 - IMU, RTC, battery over I²C in the emulator.
-- A Gleam example app.
+- ~~A Gleam example app.~~ Done early: `examples/gleam_hello` and `examples/gleam_scenes`, built with
+  `scripts/build-gleam-example.sh`.
 - Hosted gallery of CI-built apps with **Try** (emulator) and **Install** buttons.
 
 ## Backlog (no milestone yet)

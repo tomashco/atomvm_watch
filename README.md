@@ -23,7 +23,7 @@ on-device app loader ("app store"). See `docs/overview/05-roadmap.md` and `docs/
 
 ```sh
 git clone <this repo> && cd atomvm_watch
-devenv shell          # Erlang 27, Elixir 1.18, rebar3, Node 22, pnpm 10, Python 3.12, esptool
+devenv shell          # Erlang 27, Elixir 1.18, Gleam 1.18, rebar3, Node 22, pnpm 10, Python 3.12, esptool
 setup                 # wasm build, atomvmlib.avm, deps.get, pnpm install
 ```
 
@@ -78,6 +78,8 @@ mix atomvm.esp32.flash --port /dev/cu.usbserial-*
 | `examples/clock/` | Reference Elixir app |
 | `examples/scenes/` | `m5_scene` example: a menu and a detail screen |
 | `examples/nyan/` | `m5_scene` animation, used as the performance benchmark |
+| `examples/gleam_hello/` | Gleam app drawing with `m5_display` (`scripts/build-gleam-example.sh gleam_hello`) |
+| `examples/gleam_scenes/` | Gleam `avm_scene` scene with a typed display list, drawn by `m5_scene` |
 | `boards/` | Board profiles: screen, buttons, device image, firmware manifest (first: `m5stickc_plus2`) |
 | `firmware/` | Partition tables and CI workflow for the ESP32 runtime images |
 | `docs/` | Specs and plans (`superpowers/`), overview docs (`overview/`) |
