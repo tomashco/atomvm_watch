@@ -35,6 +35,16 @@ Needs the watch on USB and a Chrome or Edge browser. Record results in
       PR #2 CI run 39065272356: boot log shows 2 MB PSRAM found and added to the heap; menu, detail,
       colours, no flicker and battery all pass).
 
+## Gleam examples (firmware v0.2.0)
+
+- [x] Install runtime from the page installs release `firmware-m5stickc_plus2-v0.2.0`: the boot log
+      shows the release image's ELF SHA256 (`fd92146a3...`), 2 MB PSRAM found, 240 MHz, no errors
+      (2026-11-04).
+- [x] `gleam_hello` (built with `scripts/build-gleam-example.sh`), installed from the page: the
+      counter, A adds one, B beeps and resets (2026-11-04).
+- [x] `gleam_scenes`, installed from the page: swatches, A moves the frame, B paints the circle,
+      hold A resets (2026-11-04).
+
 ## Firmware and `m5_scene` performance (measured 2026-10-15)
 
 `examples/nyan` (a sprite, a rainbow trail of up to 60 rectangles and twinkling stars, a 50 ms tick)
