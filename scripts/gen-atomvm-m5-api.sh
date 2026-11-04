@@ -8,6 +8,7 @@
 #      do not export (m5_speaker:play_raw_*, m5_imu:get_accel/0 ...) and modules with no stub at all
 #      (m5_btn_*, m5_imu, m5_in_i2c, m5_ex_i2c). Each table is paired with every MODULE_*PREFIX
 #      "mod:" defined in its file.
+#   3. firmware/*/patches/*.patch are applied first: the snapshot is the patched API.
 # Needs curl and erl. Run from anywhere; run it again after bumping ATOMVM_M5_COMMIT.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -19,18 +20,25 @@ API="https://api.github.com/repos/pguyot/atomvm_m5/contents"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-for m in m5 m5_display m5_power m5_power_axp192 m5_rtc m5_speaker; do
-  curl -fsSL "$RAW/src/$m.erl" -o "$TMP/$m.erl"
+mkdir -p "$TMP/src" "$TMP/nifs"
+STUBS="m5 m5_display m5_power m5_power_axp192 m5_rtc m5_speaker"
+for m in $STUBS; do curl -fsSL "$RAW/src/$m.erl" -o "$TMP/src/$m.erl"; done
+NIFS=$(curl -fsSL "$API/nifs?ref=$ATOMVM_M5_COMMIT" | grep -o '"name": *"[^"]*\.cc"' | sed 's/.*: *"//; s/"//')
+for f in $NIFS; do curl -fsSL "$RAW/nifs/$f" -o "$TMP/nifs/$f"; done
+
+# The firmware's atomvm_m5 patches, so the snapshot is the API the watch actually has.
+for p in firmware/*/patches/*.patch; do patch -s -p1 -d "$TMP" -i "$PWD/$p"; done
+
+for m in $STUBS; do
   erl -noshell -eval "
-    {ok, F} = epp:parse_file(\"$TMP/$m.erl\", []),
+    {ok, F} = epp:parse_file(\"$TMP/src/$m.erl\", []),
     Ex = lists:append([L || {attribute, _, export, L} <- F]),
     [io:format(\"$m:~s/~p~n\", [N, A]) || {N, A} <- Ex], halt()."
 done > "$TMP/api.txt"
 
-for f in $(curl -fsSL "$API/nifs?ref=$ATOMVM_M5_COMMIT" | grep -o '"name": *"[^"]*\.cc"' | sed 's/.*: *"//; s/"//'); do
-  curl -fsSL "$RAW/nifs/$f" -o "$TMP/$f"
-  mods=$(grep -o '#define MODULE[A-Z_]*PREFIX "[a-z_0-9]*:"' "$TMP/$f" | sed 's/.*"\(.*\):"/\1/')
-  funs=$(grep -o '"[a-z_0-9]*/[0-9]*"' "$TMP/$f" | tr -d '"')
+for f in $NIFS; do
+  mods=$(grep -o '#define MODULE[A-Z_]*PREFIX "[a-z_0-9]*:"' "$TMP/nifs/$f" | sed 's/.*"\(.*\):"/\1/')
+  funs=$(grep -o '"[a-z_0-9]*/[0-9]*"' "$TMP/nifs/$f" | tr -d '"')
   for mod in $mods; do for fn in $funs; do echo "$mod:$fn"; done; done
 done >> "$TMP/api.txt"
 

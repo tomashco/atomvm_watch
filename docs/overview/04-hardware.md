@@ -9,7 +9,7 @@ https://docs.m5stack.com/en/core/StickC-Plus2
 
 | | |
 |--|--|
-| SoC | ESP32-PICO-V3-02 (8 MB flash, 2 MB PSRAM, PSRAM unused in milestone 1) |
+| SoC | ESP32-PICO-V3-02 (8 MB flash, 2 MB PSRAM, PSRAM enabled by the firmware since `m5_scene`) |
 | Display | 1.14" ST7789V2, 135×240, colour |
 | Input | 3 buttons: A (front), B (side), Power. In M5Unified these are `btn_a`, `btn_b`, `btn_pwr`; there is no button C |
 | Sensors | MPU6886 6-axis IMU, mic, RTC (BM8563), battery ADC |

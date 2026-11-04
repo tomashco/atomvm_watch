@@ -7,3 +7,19 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 # AtomVM's i2c driver uses the legacy IDF I2C driver, M5GFX the new one (i2c_master). IDF 5.5
 # aborts at boot when both are linked unless this check is skipped. They must not share a port.
 CONFIG_I2C_SKIP_LEGACY_CONFLICT_CHECK=y
+# AtomVM's release defaults (sdkconfig.release-defaults.in): without them IDF builds with -Og and
+# assertions on, and the VM runs several times slower.
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT=y
+# The ESP32-PICO-V3-02 is rated for 240 MHz; IDF defaults to 160.
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+# Code and BEAM files run from flash through a 32 KB cache: misses dominate the interpreter.
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+# The ESP32-PICO-V3-02 has 2 MB of PSRAM. Allocations from 16 KB up (large process heaps, images)
+# go there; smaller ones stay in internal RAM.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_USE_MALLOC=y
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=16384
+# The PICO-V3-02 is an ESP32 v3: no PSRAM cache workaround, which also would not fit in IRAM.
+CONFIG_ESP32_REV_MIN_3=y

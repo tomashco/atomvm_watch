@@ -1,0 +1,8 @@
+{application, m5_scene, [
+    {description, "avm_scene display and input servers drawing through atomvm_m5's m5_display"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {applications, [kernel, stdlib]},
+    {env, []},
+    {licenses, ["Apache-2.0"]}
+]}.

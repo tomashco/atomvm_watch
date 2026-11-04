@@ -15,7 +15,7 @@
          set_auto_display/1, get_rotation/0, set_rotation/1, set_clip_rect/4, get_clip_rect/0, clear_clip_rect/0,
          set_scroll_rect/4, get_scroll_rect/0, clear_scroll_rect/0, get_cursor/0, set_cursor/2,
          set_text_size/1, set_text_size/2, font_height/0, font_width/0,
-         draw_string/3, draw_center_string/3, draw_right_string/3, print/1, println/1, println/0]).
+         draw_string/3, draw_center_string/3, draw_right_string/3, set_text_color/2, push_image/5, print/1, println/1, println/0]).
 
 -define(UNSUPPORTED, m5_emu_unsupported:call(?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY)).
 color() -> m5_emu_display:get(color).
@@ -80,7 +80,9 @@ height() -> m5_emu_display:get(height).
 wait_display() -> ok.  display_busy() -> false.  set_auto_display(_) -> ok.
 get_rotation() -> m5_emu_display:get(rotation).
 set_rotation(R) when R >= 0, R =< 3 -> m5_emu_display:set(rotation, R).
-set_clip_rect(_, _, _, _) -> ?UNSUPPORTED.  get_clip_rect() -> ?UNSUPPORTED.  clear_clip_rect() -> ok.
+set_clip_rect(X, Y, W, H) -> m5_emu_display:cmd({set_clip_rect, X, Y, W, H}).
+get_clip_rect() -> ?UNSUPPORTED.
+clear_clip_rect() -> m5_emu_display:cmd({clear_clip_rect}).
 set_scroll_rect(_, _, _, _) -> ?UNSUPPORTED.  get_scroll_rect() -> ?UNSUPPORTED.  clear_scroll_rect() -> ok.
 get_cursor() -> m5_emu_display:get(cursor).
 set_cursor(X, Y) -> m5_emu_display:set(cursor, {X, Y}).
@@ -94,3 +96,13 @@ draw_right_string(S, X, Y) -> m5_emu_display:cmd({draw_right_string, iolist_to_b
 print(S) -> m5_emu_display:print(iolist_to_binary(S)).
 println(S) -> N = print(S), N + println().
 println() -> m5_emu_display:println().
+
+set_text_color(Fg, Bg) -> m5_emu_display:cmd({set_text_color, c(Fg), c(Bg)}).
+%% Big-endian RGB565, W * H * 2 bytes (extra bytes ignored), sent to the page as base64.
+push_image(X, Y, W, H, Bin) when is_integer(W), is_integer(H), is_binary(Bin) ->
+    case W > 0 andalso H > 0 of
+        false -> ok;
+        true when byte_size(Bin) < W * H * 2 -> erlang:error(badarg);
+        true -> m5_emu_display:cmd({push_image, X, Y, W, H,
+                                    {raw_string, base64:encode(binary:part(Bin, 0, W * H * 2))}})
+    end.

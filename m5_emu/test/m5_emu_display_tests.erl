@@ -77,6 +77,23 @@ display_test_() -> {foreach, local, fun setup/0, fun cleanup/1, [
         ?assertEqual({12, 0}, m5_display:get_cursor()),
         ?assertEqual(Pid, whereis(m5_emu_display)),
         ?assertEqual(6, m5_display:draw_string(<<"é"/utf8>>, 0, 0)) end} end,
+    fun(_) -> {"set_text_color sends both colours as rgb888", fun() ->
+        ok = m5_display:set_text_color(16#FF0000, {rgb, {0, 0, 255}}),
+        ?assertEqual(<<"m5emu.exec([[\"set_text_color\",16711680,255]])">>, script()) end} end,
+    fun(_) -> {"push_image sends base64 RGB565", fun() ->
+        ok = m5_display:push_image(1, 2, 1, 1, <<16#F8, 16#00, 16#AA>>),
+        ?assertEqual(<<"m5emu.exec([[\"push_image\",1,2,1,1,\"+AA=\"]])">>, script()) end} end,
+    fun(_) -> {"push_image with a short binary raises badarg", fun() ->
+        ?assertError(badarg, m5_display:push_image(0, 0, 2, 2, <<0, 0>>)),
+        ?assertEqual(timeout, script()) end} end,
+    fun(_) -> {"push_image with an empty size draws nothing", fun() ->
+        ?assertEqual(ok, m5_display:push_image(0, 0, 0, 5, <<>>)),
+        ?assertEqual(timeout, script()) end} end,
+    fun(_) -> {"clip rect is sent and cleared", fun() ->
+        ok = m5_display:set_clip_rect(1, 2, 3, 4),
+        ?assertEqual(<<"m5emu.exec([[\"set_clip_rect\",1,2,3,4]])">>, script()),
+        ok = m5_display:clear_clip_rect(),
+        ?assertEqual(<<"m5emu.exec([[\"clear_clip_rect\"]])">>, script()) end} end,
     fun(_) -> {"unsupported functions return an error tuple", fun() ->
         ?assertEqual({error, unsupported}, m5_display:set_scroll_rect(0, 0, 1, 1)),
         ?assertEqual(ok, m5_display:set_epd_mode(fastest)) end} end

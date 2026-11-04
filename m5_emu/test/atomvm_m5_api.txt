@@ -170,6 +170,7 @@ m5_display:print/1
 m5_display:println/0
 m5_display:println/1
 m5_display:push_block/2
+m5_display:push_image/5
 m5_display:set_auto_display/1
 m5_display:set_base_color/1
 m5_display:set_brightness/1
@@ -181,6 +182,7 @@ m5_display:set_epd_mode/1
 m5_display:set_raw_color/1
 m5_display:set_rotation/1
 m5_display:set_scroll_rect/4
+m5_display:set_text_color/2
 m5_display:set_text_size/1
 m5_display:set_text_size/2
 m5_display:sleep/0

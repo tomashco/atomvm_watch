@@ -75,6 +75,7 @@ in
   };
 
   enterShell = ''
+    "$DEVENV_ROOT/scripts/workspace.sh"
     echo "atomvm_watch: setup | dev | run-tests | firmware   (AtomVM $ATOMVM_VERSION)"
   '';
 }

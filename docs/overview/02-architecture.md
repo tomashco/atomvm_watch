@@ -36,6 +36,14 @@ at `m5:begin_/1` time; `m5_emu` has no board constants. The second M5 board is a
 Functions `m5_emu` doesn't implement return `{error, unsupported}` (never `undef`), and a test
 fails if our export list drifts from the pinned `atomvm_m5` revision.
 
+## Scenes: `m5_scene`
+
+Apps can also describe their screen as `avm_scene` scenes with AtomGL-style display lists.
+`m5_scene/` provides the display server (diffs each frame against the last and redraws only the
+changed areas with `m5_display`) and the input server (button events). It needs two `m5_display`
+functions added by firmware patch `0002`, which `m5_emu` implements too. An app uses either
+`m5_scene` or `m5_display` directly, not both. See `m5_scene/README.md`.
+
 ## Browser data flow
 
 ```

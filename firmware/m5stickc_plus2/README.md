@@ -6,8 +6,9 @@ AtomVM (`ATOMVM_VERSION` in `versions.env`) plus the `atomvm_m5` ESP-IDF compone
 | File | Purpose |
 | --- | --- |
 | `partitions.csv` | 8 MB table. `boot.avm` at 0x1D0000, `main.avm` at 0x250000 (the installer's `appOffset`). Checked by `firmware/check_partitions.py`. |
-| `sdkconfig.m5stickc_plus2` | sdkconfig overrides: 8 MB flash, custom table, I2C legacy conflict check skipped (see below). PSRAM stays off. |
+| `sdkconfig.m5stickc_plus2` | sdkconfig overrides: 8 MB flash, custom table, I2C legacy conflict check skipped (see below), AtomVM's release optimization, CPU at 240 MHz, flash in QIO at 80 MHz, the 2 MB PSRAM (allocations from 16 KB up), minimum chip revision 3 (no PSRAM cache workaround). Each was measured on the watch; see `docs/device-checklist.md`. |
 | `patches/0001-get_board-stick_cplus2.patch` | Makes `m5:get_board/0` return `stick_cplus2` on this board. |
+| `patches/0002-display-text-color-push-image.patch` | Adds `m5_display:set_text_color/2` and `m5_display:push_image/5` (used by `m5_scene`). |
 | `manifest.template.json` | Template for the web installer's `FirmwareManifest`. Image at 0x1000. |
 
 Two I2C drivers are linked: AtomVM's `i2c` (legacy IDF driver) and M5GFX/M5Unified (the new
@@ -16,7 +17,8 @@ Two I2C drivers are linked: AtomVM's `i2c` (legacy IDF driver) and M5GFX/M5Unifi
 `CONFIG_I2C_SKIP_LEGACY_CONFLICT_CHECK=y`. They must not drive the same port: do not open Erlang
 `i2c` on the internal bus (RTC, power chip) that M5Unified owns.
 
-Upstream PR for the patch: not opened yet (open it against `pguyot/atomvm_m5` and put the URL here).
+Upstream PRs for the patches: not opened yet (open `0001` and `0002` against `pguyot/atomvm_m5`
+and put the URLs here). `0002` is the better upstream candidate: it adds general display functions.
 
 The full manual device procedure with expected observations is `docs/device-checklist.md`.
 The Pages workflow mirrors the latest release's manifest and image into the site (`firmware/`),
@@ -67,3 +69,5 @@ device).
 Results (2026-10-13, CI firmware from `8c1fced`, clock flashed with esptool): screens pass,
 beep/LED pass, sleep/wake pass, runs on battery. Web "Install app" from `dev` works and the
 watch restarts into the clock in under five seconds.
+From the Pages site (2026-10-17, release `firmware-m5stickc_plus2-v0.1.0`): Install runtime then
+Install app boots the clock, and unplugging mid-install shows an error and leaves the page usable.
