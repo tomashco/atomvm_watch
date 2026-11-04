@@ -28,6 +28,14 @@ main { display: flex; flex-wrap: wrap; gap: 1.5rem; padding: 1.25rem; align-item
 #app-name { font-family: ui-monospace, monospace; }
 details { background: var(--panel); border-radius: 6px; padding: 0.5rem 0.75rem; }
 details button, details progress { margin: 0.4rem 0.4rem 0 0; }
+summary { cursor: pointer; }
+.about { color: var(--muted); }
+.about summary { color: var(--fg); }
+.about p, .about ol { margin: 0.5rem 0 0; }
+.about ol { padding-left: 1.25rem; }
+.about li + li { margin-top: 0.35rem; }
+.about strong, .about em { color: var(--fg); font-style: normal; }
+.about a { color: var(--accent); }
 button { background: #33373d; color: var(--fg); border: 1px solid #4a4f57; border-radius: 4px; padding: 0.35rem 0.75rem; cursor: pointer; }
 button:active { background: #44494f; }
 button:disabled { opacity: 0.5; cursor: default; }

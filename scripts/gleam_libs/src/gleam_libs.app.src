@@ -1,0 +1,2 @@
+{application, gleam_libs, [{description, "Erlang libraries packed into the Gleam examples"},
+                           {vsn, "0.1.0"}, {applications, [kernel, stdlib]}]}.
