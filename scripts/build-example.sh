@@ -5,7 +5,7 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 mkdir -p "$root/web/e2e/fixtures"
 
-for app in clock scenes; do
+for app in clock scenes nyan; do
   cd "$root/examples/$app"
   mix deps.get >/dev/null
   mix atomvm.packbeam

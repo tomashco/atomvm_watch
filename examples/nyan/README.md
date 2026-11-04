@@ -21,4 +21,7 @@ mix atomvm.esp32.flash --port /dev/cu.usbserial-*        # flashes nyan.avm at 0
 mix m5.emulate                                           # emulator dev loop
 ```
 
+Try it in the browser: <https://tomashco.github.io/atomvm_watch/?avm=./fixtures/nyan.avm>.
+`scripts/build-example.sh` rebuilds it and refreshes the end-to-end fixture `web/e2e/fixtures/nyan.avm`.
+
 The example itself does not print frame timing.
