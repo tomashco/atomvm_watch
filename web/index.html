@@ -15,6 +15,25 @@
     <button id="rotate" type="button" title="Rotate the device 90° counter-clockwise">↺ Rotate 90°</button>
   </section>
   <section class="side">
+    <details id="about" class="about"><summary>What is this?</summary>
+      <p><a href="https://github.com/tomashco/atomvm_watch">atomvm_watch</a> runs
+        <a href="https://github.com/atomvm/AtomVM">AtomVM</a> apps, written in Elixir, Erlang or Gleam
+        against <a href="https://github.com/pguyot/atomvm_m5">atomvm_m5</a>, on ESP32 watches. This page
+        is both an emulator and an installer: the same <code>.avm</code> runs here in the browser
+        (AtomVM compiled to WebAssembly) and on the watch.</p>
+      <ol>
+        <li><strong>Try it:</strong> drop an <code>.avm</code> (for example from
+          <code>mix atomvm.packbeam</code>) on the box below. It starts in the emulator right away.
+          Use the buttons under the watch or their keys (A, B, P for Power), and the battery slider.
+          Output and errors show in the console. The page remembers the last app you loaded.</li>
+        <li><strong>Put it on the watch</strong> (Chrome or Edge, USB cable): open
+          <em>Install to device</em> and click <em>Connect</em>. The first time on a watch, click
+          <em>Install runtime</em> (the AtomVM firmware). Then <em>Install app</em> writes
+          only your <code>.avm</code>, in about a second, and restarts the watch.</li>
+      </ol>
+      <p>Loading another app reloads the page, which closes the serial connection: click
+        <em>Connect</em> again before installing it.</p>
+    </details>
     <div id="drop" class="drop">Drop an <code>.avm</code> here, or <label class="pick"><input id="file" type="file" accept=".avm" hidden>choose a file</label></div>
     <div class="row"><span id="app-name"></span><button id="restart" type="button" hidden>Restart</button></div>
     <details id="install"><summary>Install to device</summary>
