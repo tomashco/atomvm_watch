@@ -27,3 +27,6 @@ firmware/out/
 web/test-results/
 web/playwright-report/
 web/public/fixtures/
+
+# made by scripts/build-gleam-example.sh
+scripts/gleam_libs/_checkouts/

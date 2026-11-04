@@ -1,0 +1,12 @@
+{"1.2.0",
+[{<<"atomvm_m5">>,
+  {git,"https://github.com/pguyot/atomvm_m5.git",
+       {ref,"968508c77c90af5a0109bcd7f0e28a5fa8624c02"}},
+  0},
+ {<<"avm_scene">>,{pkg,<<"avm_scene">>,<<"0.2.0">>},0}]}.
+[
+{pkg_hash,[
+ {<<"avm_scene">>, <<"6677908D8E56B94C024BC8C1BF1FD3A743D7F006C0B0EEF15A08B5E460BBF9B2">>}]},
+{pkg_hash_ext,[
+ {<<"avm_scene">>, <<"93665EF1504C32B15DCDF59B0078B1E434D21A69151263731C5E44A19362DB07">>}]}
+].

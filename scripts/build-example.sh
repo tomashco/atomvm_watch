@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds each example app into <app>.avm and refreshes its committed e2e fixture
+# Builds each example app (Elixir and Gleam) into <app>.avm and refreshes its committed e2e fixture
 # web/e2e/fixtures/<app>.avm. Also refreshes the smoke_app fixture used by the e2e replace step.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -10,6 +10,12 @@ for app in clock scenes; do
   mix deps.get >/dev/null
   mix atomvm.packbeam
   cp "$app.avm" "$root/web/e2e/fixtures/$app.avm"
+  echo "fixture updated: web/e2e/fixtures/$app.avm"
+done
+
+for app in gleam_hello gleam_scenes; do
+  "$root/scripts/build-gleam-example.sh" "$app"
+  cp "$root/examples/$app/$app.avm" "$root/web/e2e/fixtures/$app.avm"
   echo "fixture updated: web/e2e/fixtures/$app.avm"
 done
 

@@ -1,0 +1,13 @@
+%% The Erlang libraries a Gleam example needs on the watch, built with rebar3 because Gleam's git and
+%% path dependencies must be Gleam projects. atomvm_m5 is pinned by ATOMVM_M5_COMMIT (versions.env);
+%% m5_scene comes from this repository through _checkouts/ (made by scripts/build-gleam-example.sh).
+%% The atomvm_rebar3_plugin provides packbeam_api for the pack step.
+Commit = case os:getenv("ATOMVM_M5_COMMIT") of
+    false -> erlang:error("ATOMVM_M5_COMMIT is not set: run inside the devenv shell");
+    C -> C
+end,
+[{erl_opts, [debug_info]},
+ {deps, [{atomvm_m5, {git, "https://github.com/pguyot/atomvm_m5.git", {ref, Commit}}},
+         {avm_scene, "0.2.0"},
+         m5_scene]},
+ {plugins, [{atomvm_rebar3_plugin, "0.7.5"}]}].

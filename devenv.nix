@@ -9,6 +9,8 @@ in
 {
   packages = [
     beam.rebar3
+    # Gleam examples (examples/gleam_*); builds to Erlang, packed with scripts/build-gleam-example.sh
+    pkgs.gleam
     pkgs.esptool
     # build-atomvmlib.sh (AtomVM libs only, no native VM)
     pkgs.cmake
