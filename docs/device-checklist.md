@@ -38,7 +38,8 @@ Needs the watch on USB and a Chrome or Edge browser. Record results in
 ## Firmware and `m5_scene` performance (measured 2026-10-15)
 
 `examples/nyan` (a sprite, a rainbow trail of up to 60 rectangles and twinkling stars, a 50 ms tick)
-on the watch, with frame timing printed over serial. Runs differ in length, so frames per second.
+on the watch, with frame timing printed over serial (the committed example does not print it).
+Runs differ in length, so frames per second.
 
 | Firmware | `m5_scene` | Frames per second | Notes |
 | --- | --- | --- | --- |

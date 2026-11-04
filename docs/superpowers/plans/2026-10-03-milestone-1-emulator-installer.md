@@ -105,7 +105,7 @@ scripts/setup.sh dev.sh test.sh firmware.sh fetch-atomvm.sh build-m5-emu.sh impo
   export function boardMessage(p: BoardProfile): string              // "board:stick_cplus2:135:240"
   ```
 
-- [ ] **Step 1: Write the board profile and schema**
+- [x] **Step 1: Write the board profile and schema**
 
 `boards/m5stickc_plus2/board.json`:
 ```json
@@ -130,7 +130,7 @@ scripts/setup.sh dev.sh test.sh firmware.sh fetch-atomvm.sh build-m5-emu.sh impo
 
 `boards/m5stickc_plus2/device.svg`: a 200x400 rounded rectangle (fill `#f36b21`) with a 135x240 transparent window at (32, 60); three circles for buttons at the coordinates above with `id="btn-a"`, `id="btn-b"`, `id="btn-pwr"`.
 
-- [ ] **Step 2: Scaffold the Vite project**
+- [x] **Step 2: Scaffold the Vite project**
 
 ```bash
 cd web && pnpm init && pnpm add -D vite typescript vitest @types/node ajv
@@ -153,7 +153,7 @@ export default defineConfig({
 
 `web/index.html` for now: `<!doctype html><title>atomvm_watch</title><div id="app"></div><script type="module" src="/src/main.ts"></script>` and `web/src/main.ts` with `console.log("atomvm_watch")`.
 
-- [ ] **Step 3: Write failing tests for the profile parser and protocol**
+- [x] **Step 3: Write failing tests for the profile parser and protocol**
 
 `web/test/board.test.ts`:
 ```ts
@@ -202,12 +202,12 @@ describe("protocol", () => {
 });
 ```
 
-- [ ] **Step 4: Run tests, verify they fail**
+- [x] **Step 4: Run tests, verify they fail**
 
 Run: `cd web && pnpm test`
 Expected: FAIL, cannot resolve `../src/board` and `../src/protocol`.
 
-- [ ] **Step 5: Implement `board.ts` and `protocol.ts`**
+- [x] **Step 5: Implement `board.ts` and `protocol.ts`**
 
 `web/src/board.ts`:
 ```ts
@@ -251,12 +251,12 @@ export function boardMessage(p: BoardProfile): string { return `board:${p.boardA
 ```
 Add `"resolveJsonModule": true` to `tsconfig.json`. Vite serves `boards/` through a symlink `web/public/boards -> ../../boards` (create it: `ln -s ../../boards web/public/boards`).
 
-- [ ] **Step 6: Run tests, verify they pass**
+- [x] **Step 6: Run tests, verify they pass**
 
 Run: `cd web && pnpm test`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 7: Tooling scripts**
+- [x] **Step 7: Tooling scripts**
 
 `scripts/fetch-atomvm.sh` (downloads the pinned wasm builds, verifies sha256, idempotent):
 ```bash
@@ -303,12 +303,12 @@ cd "$(dirname "$0")/.."
 `.gitignore`: extend the existing file (it already ignores devenv and tooling state) with `web/node_modules/ web/dist/ web/public/atomvm/ vendor/ **/_build/ **/deps/ *.avm !web/e2e/fixtures/*.avm web/test-results/ web/playwright-report/`.
 `chmod +x scripts/*.sh`.
 
-- [ ] **Step 8: Run setup and tests through devenv**
+- [x] **Step 8: Run setup and tests through devenv**
 
 Run: `devenv shell -- setup && devenv shell -- run-tests`
 Expected: wasm files downloaded with "ready" line; vitest PASS.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add boards web scripts .gitignore
@@ -344,7 +344,7 @@ git commit -m "feat: board profile, web scaffold, tooling scripts"
   ```
   The record lives in `m5_emu/include/m5_emu_btn.hrl`.
 
-- [ ] **Step 1: Create the rebar3 project**
+- [x] **Step 1: Create the rebar3 project**
 
 `m5_emu/rebar.config`:
 ```erlang
@@ -363,7 +363,7 @@ git commit -m "feat: board profile, web scaffold, tooling scripts"
 ]}.
 ```
 
-- [ ] **Step 2: Write failing tests for the state machine**
+- [x] **Step 2: Write failing tests for the state machine**
 
 The scenarios come from M5Unified `Button_Class.cpp` (0.2.10). Time is passed explicitly, so tests are deterministic.
 
@@ -436,12 +436,12 @@ thresholds_test() ->
 feed_from(B0, Samples) -> lists:foldl(fun({T, P}, B) -> m5_emu_btn:set_raw_state(B, T, P) end, B0, Samples).
 ```
 
-- [ ] **Step 3: Run tests, verify they fail**
+- [x] **Step 3: Run tests, verify they fail**
 
 Run: `cd m5_emu && rebar3 eunit`
 Expected: FAIL, `m5_emu_btn` undefined.
 
-- [ ] **Step 4: Implement the port**
+- [x] **Step 4: Implement the port**
 
 `m5_emu/include/m5_emu_btn.hrl`: the record from Interfaces.
 
@@ -534,12 +534,12 @@ get_hold_thresh(#btn{msec_hold = H}) -> H.
 get_update_msec(#btn{last_msec = T}) -> T.
 ```
 
-- [ ] **Step 5: Run tests, verify they pass**
+- [x] **Step 5: Run tests, verify they pass**
 
 Run: `cd m5_emu && rebar3 eunit`
 Expected: PASS, 6 tests. If `press_is_debounced_test` fails at t=10, check the `>=` in the debounce comparison (C uses `msec - _lastRawChange >= _msecDebounce`).
 
-- [ ] **Step 6: Wire into `scripts/test.sh` and commit**
+- [x] **Step 6: Wire into `scripts/test.sh` and commit**
 
 Append `(cd m5_emu && rebar3 eunit)` to `scripts/test.sh` before the web line.
 ```bash
@@ -580,7 +580,7 @@ git commit -m "feat(m5_emu): rebar3 project and Button_Class port"
   ```
 - `m5_display` exposes every function in `atomvm_m5`'s `m5_display.erl` (the 90 exports listed in the spec research; copy the list from the pinned commit's `src/m5_display.erl`).
 
-- [ ] **Step 1: Write failing tests for encoding and color conversion**
+- [x] **Step 1: Write failing tests for encoding and color conversion**
 
 `m5_emu/test/m5_emu_cmd_tests.erl`:
 ```erlang
@@ -607,12 +607,12 @@ color_test() ->
     ?assertEqual(16#0000FF, m5_emu_cmd:to_rgb888({rgb565, 16#001F})).
 ```
 
-- [ ] **Step 2: Run tests, verify they fail**
+- [x] **Step 2: Run tests, verify they fail**
 
 Run: `cd m5_emu && rebar3 eunit --module=m5_emu_cmd_tests`
 Expected: FAIL, `m5_emu_cmd` undefined.
 
-- [ ] **Step 3: Implement `m5_emu_cmd` and the bridge modules**
+- [x] **Step 3: Implement `m5_emu_cmd` and the bridge modules**
 
 `m5_emu/src/m5_emu_cmd.erl`:
 ```erlang
@@ -678,12 +678,12 @@ run_script(Script) -> m5_emu_test_sink ! {script, iolist_to_binary(Script)}, ok.
 ```
 Compiling `m5_emu_bridge_emscripten` on OTP warns nothing: `emscripten` is a remote call resolved at run time.
 
-- [ ] **Step 4: Run the cmd tests, verify they pass**
+- [x] **Step 4: Run the cmd tests, verify they pass**
 
 Run: `cd m5_emu && rebar3 eunit --module=m5_emu_cmd_tests`
 Expected: PASS, 4 tests.
 
-- [ ] **Step 5: Write failing tests for the display server and API**
+- [x] **Step 5: Write failing tests for the display server and API**
 
 `m5_emu/test/m5_emu_display_tests.erl`:
 ```erlang
@@ -742,12 +742,12 @@ display_test_() -> {foreach, fun setup/0, fun cleanup/1, [
 ]}.
 ```
 
-- [ ] **Step 6: Run, verify they fail**
+- [x] **Step 6: Run, verify they fail**
 
 Run: `cd m5_emu && rebar3 eunit --module=m5_emu_display_tests`
 Expected: FAIL, `m5_emu_display` undefined.
 
-- [ ] **Step 7: Implement `m5_emu_display`**
+- [x] **Step 7: Implement `m5_emu_display`**
 
 `m5_emu/src/m5_emu_display.erl`:
 ```erlang
@@ -830,7 +830,7 @@ advance(Bin, #st{cursor = {X0, Y0}, text_size = {SX, SY}} = S) ->
 ```
 Note on `advance`: a glyph that does not fit moves to the next line and is drawn there, so after 22 glyphs at X=132 the 23rd lands at X=0 and leaves the cursor at `{6, 8}`.
 
-- [ ] **Step 8: Implement `m5_display`**
+- [x] **Step 8: Implement `m5_display`**
 
 Every function in `atomvm_m5`'s `m5_display` is exported. Pattern: drawing functions call `m5_emu_display:cmd/1` with the current color when the color argument is absent; state functions go through `get/set`; unsupported ones return `{error, unsupported}`.
 
@@ -935,12 +935,12 @@ println() -> m5_emu_display:println().
 ```
 `draw_string/3` in `atomvm_m5` returns the drawn width as an integer; keep that.
 
-- [ ] **Step 9: Run tests, verify they pass**
+- [x] **Step 9: Run tests, verify they pass**
 
 Run: `cd m5_emu && rebar3 eunit`
 Expected: PASS, all display and cmd tests.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add m5_emu
@@ -978,7 +978,7 @@ git commit -m "feat(m5_emu): display state server, command encoding, m5_display 
   %% was_released_for/1, pressed_for/1, release_for/1, set_debounce_thresh/1, set_hold_thresh/1.
   ```
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `m5_emu/test/m5_emu_input_tests.erl`:
 ```erlang
@@ -1046,12 +1046,12 @@ begin_test() ->
     Resp ! stop.
 ```
 
-- [ ] **Step 2: Run, verify they fail**
+- [x] **Step 2: Run, verify they fail**
 
 Run: `cd m5_emu && rebar3 eunit --module=m5_emu_input_tests --module=m5_tests`
 Expected: FAIL, modules undefined.
 
-- [ ] **Step 3: Implement `m5_emu_input`**
+- [x] **Step 3: Implement `m5_emu_input`**
 
 ```erlang
 -module(m5_emu_input).
@@ -1120,7 +1120,7 @@ button_name(<<"pwr">>) -> pwr;  button_name(<<"ext">>) -> ext;  button_name(_) -
 ```
 AtomVM supports `binary:split/3` with `global`, `binary_to_atom/2`, `maps:map/2`, `erlang:send_after/3`, dynamic `Module:Fun(...)` calls and `apply/3`.
 
-- [ ] **Step 4: Implement `m5` and the button modules**
+- [x] **Step 4: Implement `m5` and the button modules**
 
 `m5_emu/src/m5.erl`:
 ```erlang
@@ -1192,12 +1192,12 @@ Create `m5_btn_b.erl`, `m5_btn_c.erl`, `m5_btn_pwr.erl`, `m5_btn_ext.erl` by cop
 cd m5_emu/src && for b in b c pwr ext; do sed "s/m5_btn_a/m5_btn_$b/; s/define(BTN, a)/define(BTN, $b)/" m5_btn_a.erl > m5_btn_$b.erl; done
 ```
 
-- [ ] **Step 5: Run tests, verify they pass**
+- [x] **Step 5: Run tests, verify they pass**
 
 Run: `cd m5_emu && rebar3 eunit`
 Expected: PASS. If `begin_test` hangs, the responder is not registered before `begin_` runs the handshake; registration happens in the test before `begin_`, so check the mock bridge sends to `m5_emu_test_sink`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add m5_emu
@@ -1227,7 +1227,7 @@ git commit -m "feat(m5_emu): input server, m5 begin_/update, button modules"
               any other pin -> {error, unsupported}.
   ```
 
-- [ ] **Step 1: Pin the upstream API list**
+- [x] **Step 1: Pin the upstream API list**
 
 `scripts/gen-atomvm-m5-api.sh` extracts `Module:Fun/Arity` lines from the pinned `atomvm_m5` stub modules and the button NIF table, and writes `m5_emu/test/atomvm_m5_api.txt`:
 ```bash
@@ -1257,7 +1257,7 @@ wc -l m5_emu/test/atomvm_m5_api.txt
 ```
 Run it once and commit the output. Expected: about 145 lines.
 
-- [ ] **Step 2: Write the failing drift test and peripheral tests**
+- [x] **Step 2: Write the failing drift test and peripheral tests**
 
 `m5_emu/test/m5_emu_api_tests.erl`:
 ```erlang
@@ -1319,12 +1319,12 @@ periph_test_() -> {foreach, fun setup/0, fun cleanup/1, [
 ]}.
 ```
 
-- [ ] **Step 3: Run, verify they fail**
+- [x] **Step 3: Run, verify they fail**
 
 Run: `cd m5_emu && rebar3 eunit --module=m5_emu_api_tests --module=m5_peripherals_tests`
 Expected: FAIL, modules missing.
 
-- [ ] **Step 4: Implement the peripheral modules**
+- [x] **Step 4: Implement the peripheral modules**
 
 Speaker and LED state live in the display server to avoid a third process. Add to `m5_emu_display`'s record: `tone_until = 0, volume = 64, led = false`, and these clauses:
 ```erlang
@@ -1382,12 +1382,12 @@ digital_read(?LED) -> case m5_emu_display:led() of true -> high; false -> low en
 digital_read(_) -> {error, unsupported}.
 ```
 
-- [ ] **Step 5: Run the whole suite, verify it passes**
+- [x] **Step 5: Run the whole suite, verify it passes**
 
 Run: `cd m5_emu && rebar3 eunit`
 Expected: PASS including `every_upstream_function_is_exported_test`. If it lists missing `m5_display` functions, add them to `m5_display.erl` as `{error, unsupported}` until the list is empty.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add m5_emu scripts/gen-atomvm-m5-api.sh
@@ -1408,7 +1408,7 @@ This task retires two risks from the spec: module shadowing across packs, and `r
 - Produces `web/public/m5_emu.avm` (library pack, no start module) built by `scripts/build-m5-emu.sh`.
 - Consumes `vendor/atomvm/AtomVM-node.mjs` (Task 1 fetch script).
 
-- [ ] **Step 1: Build script for the library pack**
+- [x] **Step 1: Build script for the library pack**
 
 `scripts/build-m5-emu.sh`:
 ```bash
@@ -1430,7 +1430,7 @@ erl -noshell -pa _build/default/plugins/*/ebin -eval '
 ```
 `packbeam_api:create/3` and `packbeam_api:list/1` are the library entry points of `atomvm_packbeam` (the escript's `create --lib` calls `create` with `start_module => undefined`). If the installed `atomvm_packbeam` version names the option differently, run `rebar3 shell` and inspect `packbeam_api:module_info(exports)`; the `--lib` flag maps to a start-module-less create. Confirm the pack has no start flag with the plugin's listing: `rebar3 atomvm packbeam -l` marks start modules with `*`; our pack must show none. Add `web/public/m5_emu.avm` to `.gitignore` (it is a build artifact; the Pages workflow rebuilds it).
 
-- [ ] **Step 2: Write the smoke app (runs under AtomVM, drives the whole stack)**
+- [x] **Step 2: Write the smoke app (runs under AtomVM, drives the whole stack)**
 
 `m5_emu/test/smoke_app/rebar.config`:
 ```erlang
@@ -1473,7 +1473,7 @@ start() ->
 ```
 Build it: `cd m5_emu/test/smoke_app && rebar3 atomvm packbeam` → `_build/default/lib/smoke_app.avm` (start module `smoke_app`).
 
-- [ ] **Step 3: Write the node harness**
+- [x] **Step 3: Write the node harness**
 
 `m5_emu/test/node/package.json`: `{ "type": "module", "private": true }`.
 
@@ -1512,7 +1512,7 @@ console.log("smoke OK");
 ```
 If `Module` resolves before `main` has finished (the node build may run `main` asynchronously when `arguments` are URLs), wait for `SMOKE done` by polling `lines` with a 10 s timeout before asserting.
 
-- [ ] **Step 4: Run the smoke test, verify it passes**
+- [x] **Step 4: Run the smoke test, verify it passes**
 
 Run:
 ```bash
@@ -1522,7 +1522,7 @@ Expected: `SMOKE board stick_cplus2 135x240`, `SMOKE a_pressed true`, a throughp
 
 Troubleshooting: `SMOKE board undefined` means the start module's pack was searched first; check argument order and that `m5_emu.avm` has no start module. `nif_error` in stderr means the app's stub `m5_display.beam` won: the library pack is not first in `arguments`. If `emscripten:run_script` with `main_thread` fails on node, change `m5_emu_bridge_emscripten` to pass `[]` when `atomvm:platform()` is `emscripten` and no `window` exists; simplest is to keep `[main_thread, async]` and verify the node build accepts it (the option is a no-op without pthreads proxying).
 
-- [ ] **Step 5: Wire into `scripts/test.sh` and commit**
+- [x] **Step 5: Wire into `scripts/test.sh` and commit**
 
 Append to `scripts/test.sh`:
 ```bash
@@ -1570,7 +1570,7 @@ git commit -m "test(m5_emu): library pack and AtomVM node smoke test"
   export function attachCanvas(r: M5Renderer, canvas: HTMLCanvasElement): { present(): void };
   ```
 
-- [ ] **Step 1: Import the font table**
+- [x] **Step 1: Import the font table**
 
 `scripts/import-font0.mjs` downloads `glcdfont.h` from LovyanGFX (Adafruit BSD license, keep the header) and writes `web/src/font0.ts`:
 ```js
@@ -1591,7 +1591,7 @@ console.log("wrote web/src/font0.ts", table.length, "bytes");
 ```
 Run: `node scripts/import-font0.mjs`. If tag `1.2.0` does not exist, use `master`; the table has not changed in years.
 
-- [ ] **Step 2: Write failing tests**
+- [x] **Step 2: Write failing tests**
 
 `web/test/font0.test.ts`:
 ```ts
@@ -1693,12 +1693,12 @@ describe("M5Renderer", () => {
 ```
 Add `pngjs` and `@types/pngjs` as dev dependencies: `cd web && pnpm add -D pngjs @types/pngjs`.
 
-- [ ] **Step 3: Run, verify they fail**
+- [x] **Step 3: Run, verify they fail**
 
 Run: `cd web && pnpm test`
 Expected: FAIL, `../src/renderer` and `../src/framebuffer` missing.
 
-- [ ] **Step 4: Implement `framebuffer.ts`**
+- [x] **Step 4: Implement `framebuffer.ts`**
 
 ```ts
 export class Framebuffer {
@@ -1720,7 +1720,7 @@ export class Framebuffer {
 }
 ```
 
-- [ ] **Step 5: Implement `renderer.ts`**
+- [x] **Step 5: Implement `renderer.ts`**
 
 ```ts
 import { Framebuffer } from "./framebuffer";
@@ -1873,7 +1873,7 @@ export class M5Renderer {
 ```
 Text size in the Erlang side is sent as given (`set_text_size(2)` → `[2,2]`); M5GFX accepts fractional sizes, but the renderer rounds to whole pixels, which is what the StickC shows for integer sizes.
 
-- [ ] **Step 6: Implement `canvas.ts`**
+- [x] **Step 6: Implement `canvas.ts`**
 
 ```ts
 import type { M5Renderer } from "./renderer";
@@ -1894,12 +1894,12 @@ export function attachCanvas(r: M5Renderer, canvas: HTMLCanvasElement) {
 ```
 The canvas is sized natively (135x240) and scaled with CSS (`width: 405px; image-rendering: pixelated`), so rotation never changes the element.
 
-- [ ] **Step 7: Run tests, verify they pass; inspect goldens**
+- [x] **Step 7: Run tests, verify they pass; inspect goldens**
 
 Run: `cd web && pnpm test`
 Expected: PASS; first run writes `web/test/golden/{text-A,print-wrap-size2,shapes}.png`. Open them and check by eye: an "A", 23 x's wrapping with a large A below, and the shapes. Commit the PNGs. Re-running must pass without `UPDATE_GOLDENS`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add scripts/import-font0.mjs web/src web/test web/package.json web/pnpm-lock.yaml
@@ -1941,7 +1941,7 @@ git commit -m "feat(web): framebuffer renderer with M5GFX semantics and 6x8 font
   export function makeConsole(el: HTMLElement): { out(line: string): void; err(line: string): void; clear(): void }
   ```
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `web/test/vm.test.ts`:
 ```ts
@@ -2041,12 +2041,12 @@ describe("bindInputs", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify they fail**
+- [x] **Step 2: Run, verify they fail**
 
 Run: `cd web && pnpm test`
 Expected: FAIL on the three new files (modules missing).
 
-- [ ] **Step 3: Implement `vm.ts`**
+- [x] **Step 3: Implement `vm.ts`**
 
 ```ts
 export interface VmFactory { (opts: Record<string, unknown>): Promise<{ cast(name: string, msg: string): void }> }
@@ -2073,7 +2073,7 @@ export async function startVm(o: { factory: VmFactory; avmUrls: string[]; onStdo
 ```
 Emscripten calls `onExit` when `main` returns; with `PROXY_TO_PTHREAD` that happens on the worker and is forwarded to the module on the main thread.
 
-- [ ] **Step 4: Implement `loader.ts`, `input.ts`, `audio.ts`, `console.ts`**
+- [x] **Step 4: Implement `loader.ts`, `input.ts`, `audio.ts`, `console.ts`**
 
 `web/src/loader.ts`:
 ```ts
@@ -2151,7 +2151,7 @@ export function makeConsole(el: HTMLElement) {
 }
 ```
 
-- [ ] **Step 5: Page and wiring**
+- [x] **Step 5: Page and wiring**
 
 `web/index.html`:
 ```html
@@ -2236,13 +2236,13 @@ else { const last = await loadLastApp(); if (last) run(last); }
 
 `web/src/style.css`: dark theme, `.frame` positioned relative with the device SVG as background (`url(./boards/m5stickc_plus2/device.svg)`), `canvas { image-rendering: pixelated; position: absolute; left: 32px*scale/… }`. Keep it simple: a flex layout with the device on the left and the side panel on the right, `.console { height: 14rem; overflow: auto; background: #111; color: #ddd; font: 12px monospace }`, `.led.on { background: #f00; box-shadow: 0 0 8px #f00 }`.
 
-- [ ] **Step 6: Run tests and the dev server**
+- [x] **Step 6: Run tests and the dev server**
 
 Run: `cd web && pnpm test && pnpm build`
 Expected: all vitest files PASS; `vite build` succeeds.
 Manual: `cd web && pnpm dev`, open `http://localhost:5173/?avm=http://localhost:5173/fixtures/smoke_app.avm` after copying `m5_emu/test/smoke_app/_build/default/lib/smoke_app.avm` to `web/public/fixtures/`. Expected: console shows `SMOKE board stick_cplus2 135x240`, a red rectangle and "hello" on the canvas. If the console shows `Failed opening blob:...`, apply the service-worker fallback described in `loader.ts`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web
@@ -2271,7 +2271,7 @@ git commit -m "feat(web): VM glue, app loader, inputs, buzzer, console and page"
   export function setupInstaller(profile: BoardProfile, els: {...}, currentApp: () => LoadedApp | undefined, con: Console, flasher?: Flasher): void
   ```
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `web/test/flash.test.ts`:
 ```ts
@@ -2327,12 +2327,12 @@ describe("setupInstaller", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify they fail**
+- [x] **Step 2: Run, verify they fail**
 
 Run: `cd web && pnpm test`
 Expected: FAIL, `flash.ts` missing, `setupInstaller` stub has the wrong signature.
 
-- [ ] **Step 3: Implement `flash.ts`**
+- [x] **Step 3: Implement `flash.ts`**
 
 ```ts
 export interface FirmwareManifest { version: string; chip: string; atomvm: string; parts: { path: string; offset: number }[]; appOffset: number }
@@ -2353,7 +2353,7 @@ export function checkChip(expected: string, reported: string): void {
 }
 ```
 
-- [ ] **Step 4: Implement `installer.ts`**
+- [x] **Step 4: Implement `installer.ts`**
 
 ```ts
 import { ESPLoader, Transport } from "esptool-js";
@@ -2421,12 +2421,12 @@ export function setupInstaller(profile: BoardProfile, els: { connect: HTMLElemen
 ```
 `pnpm add esptool-js@0.7.0`. The `as any` casts cover differences between 0.7 typings and the README; if `LoaderOptions` requires `enableTracing`, add `enableTracing: false`.
 
-- [ ] **Step 5: Run tests, verify they pass**
+- [x] **Step 5: Run tests, verify they pass**
 
 Run: `cd web && pnpm test && pnpm build`
 Expected: PASS (both installer tests, flash helpers), build OK.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web
@@ -2445,7 +2445,7 @@ git commit -m "feat(web): Web Serial installer with esptool-js"
 - Produces release assets on tag `firmware-m5stickc_plus2-v<semver>`: `AtomVM-m5stickc_plus2-<semver>.img` (flash at `0x1000`), `manifest-m5stickc_plus2.json` matching `FirmwareManifest` from Task 9, and `.sha256` files.
 - Consumes `ATOMVM_VERSION`, the pinned `atomvm_m5` commit.
 
-- [ ] **Step 1: Partition table and its check**
+- [x] **Step 1: Partition table and its check**
 
 `firmware/m5stickc_plus2/partitions.csv`:
 ```csv
@@ -2478,7 +2478,7 @@ print(f"OK: {len(parts)} partitions, ends at 0x{end:X}")
 ```
 Run: `python3 firmware/check_partitions.py firmware/m5stickc_plus2/partitions.csv` → `OK: 6 partitions, ends at 0x800000`. Add it to `scripts/test.sh`.
 
-- [ ] **Step 2: sdkconfig overrides and the `get_board` patch**
+- [x] **Step 2: sdkconfig overrides and the `get_board` patch**
 
 `firmware/m5stickc_plus2/sdkconfig.m5stickc_plus2` (applied after AtomVM's generated `sdkconfig.defaults`; later files win):
 ```
@@ -2505,7 +2505,7 @@ PSRAM stays off in milestone 1 (M5Unified does not need it; AtomVM's own images 
 ```
 Regenerate the hunk header with `git diff` inside the checked-out `atomvm_m5` if the line numbers differ; `git apply --3way` tolerates small offsets. Open the same change as a PR upstream (`pguyot/atomvm_m5`) and note the PR URL in `firmware/m5stickc_plus2/README.md`.
 
-- [ ] **Step 3: Build script (runs inside the IDF container; CI and local use the same file)**
+- [x] **Step 3: Build script (runs inside the IDF container; CI and local use the same file)**
 
 `firmware/build.sh`:
 ```bash
@@ -2560,7 +2560,7 @@ docker run --rm -v "$PWD:/repo" -w /repo -e FW_VERSION="${FW_VERSION:-dev}" "$ID
 ```
 Debian's `elixir` package may be older than 1.14; if `make -C libs` fails on Elixir, install via `apt install -y erlang` plus a precompiled Elixir tarball (`https://github.com/elixir-lang/elixir/releases/download/v1.18.4/elixir-otp-27.zip` unzipped to `/opt/elixir`, add `/opt/elixir/bin` to `PATH`). Add `firmware/.work/ firmware/out/` to `.gitignore`.
 
-- [ ] **Step 4: CI workflow**
+- [x] **Step 4: CI workflow**
 
 `.github/workflows/firmware.yml`:
 ```yaml
@@ -2597,7 +2597,7 @@ jobs:
 ```
 The board profile's `firmwareManifest` points at `releases/latest/download/manifest-m5stickc_plus2.json`; GitHub resolves `latest` to the newest non-prerelease release, so tag firmware releases as full releases.
 
-- [ ] **Step 5: Build locally and verify on the watch**
+- [x] **Step 5: Build locally and verify on the watch**
 
 Run: `devenv shell -- firmware` where Docker is available, otherwise push and let `.github/workflows/firmware.yml` build it (first run takes 20 to 40 minutes: IDF component download, M5Unified/M5GFX fetch, two builds).
 Expected: `built firmware/out/AtomVM-m5stickc_plus2-dev.img` (about 2.3 MB) and `manifest-m5stickc_plus2.json`.
@@ -2611,7 +2611,7 @@ Then `screen /dev/cu.usbserial-* 115200`. Expected: AtomVM banner, then the smok
 
 If the display stays black: run `idf.py menuconfig` and confirm `AVM_M5_DISPLAY_ENABLE=y`; check M5GFX autodetect logs on the serial console (`[Autodetect] M5StickCPlus2`).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add firmware scripts/firmware.sh scripts/test.sh .github/workflows/firmware.yml .gitignore m5_emu/test/smoke_app
@@ -2631,7 +2631,7 @@ git commit -m "feat(firmware): M5StickC Plus 2 runtime image with 8 MB partition
 - Produces `web/e2e/fixtures/clock.avm` (committed, rebuilt by `scripts/build-example.sh`).
 - The example uses only `m5`, `m5_display`, `m5_btn_a`, `m5_btn_b`, `m5_btn_pwr`, `m5_speaker`, `gpio`.
 
-- [ ] **Step 1: The example app**
+- [x] **Step 1: The example app**
 
 `examples/clock/mix.exs`:
 ```elixir
@@ -2741,7 +2741,7 @@ end
 ```
 `mix atomvm.check` will warn that `m5_*` functions are "not available" on the AtomVM API list because they come from a component; that is a warning, not an error. Verify `mix deps.get && mix atomvm.packbeam` produces `clock.avm` in the project root.
 
-- [ ] **Step 2: Fixture build script and Playwright setup**
+- [x] **Step 2: Fixture build script and Playwright setup**
 
 `scripts/build-example.sh`:
 ```bash
@@ -2765,7 +2765,7 @@ export default defineConfig({
 ```
 Vite's `preview` serves `web/dist`; copy the fixture into the served tree in `package.json`: `"prebuild": "mkdir -p public/fixtures && cp e2e/fixtures/clock.avm public/fixtures/clock.avm"`.
 
-- [ ] **Step 3: Write the e2e test**
+- [x] **Step 3: Write the e2e test**
 
 `web/e2e/clock.spec.ts`:
 ```ts
@@ -2805,7 +2805,7 @@ test("clock app boots, reacts to buttons, and can be replaced", async ({ page })
 ```
 Pixel coordinates are native framebuffer coordinates; at rotation 1 the logical top-left of the screen maps to native `(134, 0)`, but a full-screen fill makes `(5,5)` valid regardless.
 
-- [ ] **Step 4: Run it**
+- [x] **Step 4: Run it**
 
 Run: `scripts/build-example.sh && cd web && pnpm exec playwright test`
 Expected: PASS. Failure modes and what they mean:
@@ -2813,7 +2813,7 @@ Expected: PASS. Failure modes and what they mean:
 - Console shows `SharedArrayBuffer is not defined` → the preview server lost the COOP/COEP headers; check `vite.config.ts` `preview.headers`.
 - `m5emu.exec` never called → `boardReady` handshake failed; check `window.m5emu` is assigned before the VM starts.
 
-- [ ] **Step 5: Wire into `scripts/test.sh`, document, commit**
+- [x] **Step 5: Wire into `scripts/test.sh`, document, commit**
 
 Append to `scripts/test.sh`: `(cd web && pnpm exec playwright test)`. Add `"e2e": "playwright test"` to `web/package.json`. Write `examples/clock/README.md` with the three commands: `mix deps.get`, `mix atomvm.packbeam`, `mix atomvm.esp32.flash --port /dev/cu.usbserial-*`.
 
@@ -2836,7 +2836,7 @@ git commit -m "feat: clock example app and Playwright end-to-end test"
 - Produces `M5EmuMix.Server.start(opts) :: {:ok, pid}` with `opts = [port: integer, web_dir: path, avm: path]`; serves `web_dir` statically with COOP/COEP headers, `GET /app.avm` (the packed app), `GET /__version` (mtime of the avm as text).
 - The page, when `?dev=1`, polls `/__version` every second and reloads when it changes.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 `m5_emu_mix/test/server_test.exs`:
 ```elixir
@@ -2871,7 +2871,7 @@ end
 ```
 Run: `cd m5_emu_mix && mix test` → FAIL (module missing). `:inets` must be started in `test_helper.exs`: `Application.ensure_all_started(:inets)`.
 
-- [ ] **Step 2: Implement the server with Bandit + Plug**
+- [x] **Step 2: Implement the server with Bandit + Plug**
 
 `m5_emu_mix/mix.exs` deps: `{:bandit, "~> 1.6"}, {:plug, "~> 1.16"}`; `elixirc_paths` default; `app: :m5_emu_mix`.
 
@@ -2906,7 +2906,7 @@ end
 ```
 Bandit returns a `ThousandIsland` listener; `ThousandIsland.listener_info/1` gives the bound port. Run `mix test` → PASS.
 
-- [ ] **Step 3: The mix task**
+- [x] **Step 3: The mix task**
 
 `m5_emu_mix/lib/mix/tasks/m5.emulate.ex`:
 ```elixir
@@ -2952,7 +2952,7 @@ end
 ```
 `scripts/build-web.sh`: `cd web && pnpm build && rm -rf ../m5_emu_mix/priv/web && mkdir -p ../m5_emu_mix/priv && cp -R dist ../m5_emu_mix/priv/web && cp public/m5_emu.avm ../m5_emu_mix/priv/web/` (the `.avm` must be present in the served dir; `vite build` copies `public/` into `dist/` already, so the last `cp` is a safety net).
 
-- [ ] **Step 4: Dev reload in the page**
+- [x] **Step 4: Dev reload in the page**
 
 In `web/src/main.ts`, after `run(...)` is wired:
 ```ts
@@ -2965,7 +2965,7 @@ if (params.get("dev") === "1") {
 ```
 Add `{:m5_emu_mix, path: "../../m5_emu_mix", only: :dev, runtime: false}` to `examples/clock/mix.exs` deps.
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Run: `scripts/build-web.sh && cd examples/clock && mix m5.emulate`
 Expected: browser opens on the clock app. Edit `lib/clock.ex` (change a string), save: terminal prints "change detected, repacking…", page reloads within about two seconds showing the new text.
@@ -2983,7 +2983,7 @@ git commit -m "feat(mix): mix m5.emulate dev loop"
 - Create: `.github/workflows/ci.yml`, `.github/workflows/pages.yml`, `firmware/m5stickc_plus2/README.md`, `docs/device-checklist.md`
 - Modify: `README.md`
 
-- [ ] **Step 1: CI**
+- [x] **Step 1: CI**
 
 `.github/workflows/ci.yml`:
 ```yaml
@@ -3003,7 +3003,7 @@ jobs:
 ```
 `devenv shell` provides the Erlang, Elixir, Node, pnpm and Python pinned by `devenv.lock`; `run-tests` runs eunit, the node smoke test, vitest, the partition check and Playwright in that order.
 
-- [ ] **Step 2: Pages**
+- [x] **Step 2: Pages**
 
 `.github/workflows/pages.yml`:
 ```yaml
@@ -3031,13 +3031,13 @@ jobs:
 ```
 `vite.config.ts` already uses `base: "./"`, so the site works under `https://tomashco.github.io/atomvm_watch/`. Enable Pages (Settings → Pages → Source: GitHub Actions) once.
 
-- [ ] **Step 3: Docs**
+- [x] **Step 3: Docs**
 
 `docs/device-checklist.md`: the manual steps from Tasks 10 and 11 as a checklist with expected observations (banner on serial, three screens, beep, LED, sleep/wake, web install time).
 `firmware/m5stickc_plus2/README.md`: what the image contains, the partition table, the upstream `get_board` PR link, measured throughput numbers.
 `README.md`: replace the "Tasks are wired up as milestone 1 lands" line with the Pages URL and a three-step quick start (open the page, drop `clock.avm` from the latest release, Install runtime then Install app).
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Run: `devenv shell -- run-tests` locally (everything green), push, confirm `ci` and `pages` workflows pass and the Pages URL loads the emulator with the clock fixture via `?avm=./fixtures/clock.avm`.
 

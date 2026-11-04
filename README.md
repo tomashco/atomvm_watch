@@ -5,8 +5,9 @@ Write apps in Elixir, Erlang or Gleam against
 [atomvm_m5](https://github.com/pguyot/atomvm_m5), run them in the browser, then flash them to the
 watch over USB from the same page. Think Bangle.js app loader, for the BEAM.
 
-Status: pre-alpha, milestone 1 (single app: emulate, flash runtime, flash app).
-Milestone 2 is the on-device app loader ("app store"). See `docs/superpowers/specs/`.
+Status: pre-alpha. Milestone 1 is done (single app: emulate, flash runtime, flash app), and so is
+`m5_scene` (`avm_scene` scenes drawn through `m5_display`, on firmware with PSRAM). Milestone 2 is the
+on-device app loader ("app store"). See `docs/overview/05-roadmap.md` and `docs/superpowers/specs/`.
 
 ## Prerequisites
 
@@ -43,6 +44,11 @@ firmware              # builds firmware/out/AtomVM-m5stickc_plus2-dev.img in Doc
 
 Each also works from outside the shell, for example `devenv shell -- run-tests`.
 
+Entering the shell also runs `scripts/workspace.sh`, which writes `atomvm_watch.code-workspace`
+(git-ignored): one VS Code folder per Mix project (the repo root, `m5_emu_mix` and every
+`examples/*/mix.exs`, local ones included), so ElixirLS lints and formats each project on save.
+Open that file in VS Code instead of the bare folder.
+
 First time on a watch: open the emulator page, plug the watch in, click **Connect**, then
 **Install runtime**. After that, **Connect** and **Install app** write only the app `.avm` (about a second).
 
@@ -68,7 +74,10 @@ mix atomvm.esp32.flash --port /dev/cu.usbserial-*
 | `m5_emu/` | Erlang library that implements the `atomvm_m5` API for the browser VM |
 | `web/` | Emulator page, display renderer, Web Serial installer |
 | `m5_emu_mix/` | `mix m5.emulate` task for Elixir projects |
+| `m5_scene/` | Erlang library that draws `avm_scene` display lists through `m5_display` |
 | `examples/clock/` | Reference Elixir app |
+| `examples/scenes/` | `m5_scene` example: a menu and a detail screen |
+| `examples/nyan/` | `m5_scene` animation, used as the performance benchmark |
 | `boards/` | Board profiles: screen, buttons, device image, firmware manifest (first: `m5stickc_plus2`) |
 | `firmware/` | Partition tables and CI workflow for the ESP32 runtime images |
 | `docs/` | Specs and plans (`superpowers/`), overview docs (`overview/`) |
