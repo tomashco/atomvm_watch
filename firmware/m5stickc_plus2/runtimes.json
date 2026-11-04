@@ -1,0 +1,10 @@
+[
+  {
+    "version": "0.2.0",
+    "description": "Recommended. AtomVM 0.7.0-beta.0 with atomvm_m5, plus m5_display:set_text_color/2 and push_image/5, the 2 MB PSRAM, CPU at 240 MHz and flash in QIO at 80 MHz. Runs every example."
+  },
+  {
+    "version": "0.1.0",
+    "description": "First release. AtomVM 0.7.0-beta.0 with atomvm_m5 and the get_board fix only: debug build, CPU at 160 MHz, no PSRAM. Runs clock; m5_scene apps and gleam_hello need 0.2.0."
+  }
+]

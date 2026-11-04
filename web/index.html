@@ -23,21 +23,28 @@
         (AtomVM compiled to WebAssembly) and on the watch.</p>
       <ol>
         <li><strong>Try it:</strong> drop an <code>.avm</code> (for example from
-          <code>mix atomvm.packbeam</code>) on the box below. It starts in the emulator right away.
+          <code>mix atomvm.packbeam</code>) on the box below, or open one of the repo's examples. It starts in the emulator right away.
           Use the buttons under the watch or their keys (A, B, P for Power), and the battery slider.
           Output and errors show in the console. The page remembers the last app you loaded.</li>
         <li><strong>Put it on the watch</strong> (Chrome or Edge, USB cable): open
           <em>Install to device</em> and click <em>Connect</em>. The first time on a watch, click
-          <em>Install runtime</em> (the AtomVM firmware). Then <em>Install app</em> writes
+          <em>Install runtime</em> (the AtomVM firmware; the newest is
+          selected, older ones are listed with what they lack). Then <em>Install app</em> writes
           only your <code>.avm</code>, in about a second, and restarts the watch.</li>
       </ol>
       <p>Loading another app reloads the page, which closes the serial connection: click
         <em>Connect</em> again before installing it.</p>
     </details>
     <div id="drop" class="drop">Drop an <code>.avm</code> here, or <label class="pick"><input id="file" type="file" accept=".avm" hidden>choose a file</label></div>
+    <div class="pickers"><label for="example">Or open an example</label>
+      <select id="example"><option value="">Choose…</option></select>
+      <p id="example-info" class="hint"></p></div>
     <div class="row"><span id="app-name"></span><button id="restart" type="button" hidden>Restart</button></div>
     <details id="install"><summary>Install to device</summary>
       <button id="connect" type="button">Connect (Web Serial)</button><span id="chip"></span>
+      <div class="pickers"><label for="runtime">Runtime</label>
+        <select id="runtime"></select>
+        <p id="runtime-info" class="hint"></p></div>
       <button id="install-runtime" type="button" disabled>Install runtime</button>
       <button id="install-app" type="button" disabled>Install app</button>
       <progress id="progress" max="100" value="0" hidden></progress>

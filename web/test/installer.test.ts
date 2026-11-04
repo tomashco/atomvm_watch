@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { setupInstaller, type Flasher, type Session } from "../src/installer";
 import { parseBoardProfile } from "../src/board";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 const p = parseBoardProfile(JSON.parse(readFileSync(join(import.meta.dirname, "../../boards/m5stickc_plus2/board.json"), "utf8")));
 function els() {
@@ -134,5 +134,52 @@ describe("setupInstaller", () => {
     const e = { ...els(), section: document.createElement("details") };
     setupInstaller(p, e, () => undefined, mkCon());
     expect(e.section.hidden).toBe(true);
+  });
+});
+
+describe("runtime selector", () => {
+  const runtimesList = [
+    { version: "0.2.0", description: "new", manifest: "0.2.0/manifest-m5stickc_plus2.json" },
+    { version: "0.1.0", description: "old", manifest: "0.1.0/manifest-m5stickc_plus2.json" },
+  ];
+  const stub = (list: unknown, fetched: string[]) => vi.stubGlobal("fetch", vi.fn(async (u: string) => {
+    fetched.push(u);
+    if (u.endsWith("runtimes-m5stickc_plus2.json")) return list === undefined ? { ok: false, status: 404 } : { ok: true, json: async () => list };
+    return u.endsWith(".json") ? { ok: true, json: async () => goodManifest } : { ok: true, arrayBuffer: async () => new Uint8Array([1]).buffer };
+  }));
+
+  it("lists the runtimes with their description and installs the selected one", async () => {
+    const fetched: string[] = []; stub(runtimesList, fetched);
+    const con = mkCon(); const { flasher } = fake("ESP32-D0WD-V3");
+    const e = { ...els(), runtimeSelect: document.createElement("select"), runtimeInfo: document.createElement("p") };
+    setupInstaller(p, e, () => undefined, con, flasher); await settle();
+    expect([...e.runtimeSelect.options].map((o) => o.text)).toEqual(["v0.2.0", "v0.1.0"]);
+    expect(e.runtimeInfo.textContent).toBe("new");
+    e.runtimeSelect.selectedIndex = 1; e.runtimeSelect.dispatchEvent(new Event("change"));
+    expect(e.runtimeInfo.textContent).toBe("old");
+    e.connect.click(); await settle();
+    e.runtime.click(); await settle();
+    expect(fetched).toContain("firmware/0.1.0/manifest-m5stickc_plus2.json");
+    expect(fetched).toContain("firmware/0.1.0/a.img");
+  });
+
+  it("falls back to firmwareManifest when the site has no runtimes list", async () => {
+    const fetched: string[] = []; stub(undefined, fetched);
+    const { flasher } = fake("ESP32-D0WD-V3");
+    const e = { ...els(), runtimeSelect: document.createElement("select"), runtimeInfo: document.createElement("p") };
+    setupInstaller(p, e, () => undefined, mkCon(), flasher); await settle();
+    expect([...e.runtimeSelect.options].map((o) => o.text)).toEqual(["latest"]);
+    e.connect.click(); await settle();
+    e.runtime.click(); await settle();
+    expect(fetched).toContain("firmware/manifest-m5stickc_plus2.json");
+  });
+});
+
+describe("examples list", () => {
+  it("names every example fixture (all .avm but the smoke app)", () => {
+    const dir = join(import.meta.dirname, "../e2e/fixtures");
+    const listed = (JSON.parse(readFileSync(join(dir, "examples.json"), "utf8")) as { file: string }[]).map((e) => e.file).sort();
+    const files = readdirSync(dir).filter((f) => f.endsWith(".avm") && f !== "smoke_app.avm").sort();
+    expect(listed).toEqual(files);
   });
 });

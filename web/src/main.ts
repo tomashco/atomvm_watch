@@ -158,7 +158,26 @@ drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); runFil
 installer = setupInstaller(profile, {
   connect: $("connect"), runtime: $("install-runtime"), app: $("install-app"),
   chip: $("chip"), progress: $<HTMLProgressElement>("progress"), section: $("install"),
+  runtimeSelect: $<HTMLSelectElement>("runtime"), runtimeInfo: $("runtime-info"),
 }, () => current, con);
+
+// Examples: the fixtures the site serves (web/e2e/fixtures/examples.json). Choosing one loads it
+// like ?avm= does.
+interface Example { file: string; name: string; description: string }
+const exampleSelect = $<HTMLSelectElement>("example");
+const exampleInfo = $("example-info");
+fetch(`${BASE}fixtures/examples.json`).then((r) => (r.ok ? r.json() : [])).then((list: Example[]) => {
+  if (!list.length) throw new Error("no examples");
+  const current = params.get("avm")?.split("/").pop();
+  exampleSelect.append(...list.map((e) => new Option(e.name, e.file, false, e.file === current)));
+  const show = () => { exampleInfo.textContent = list.find((e) => e.file === exampleSelect.value)?.description ?? ""; };
+  show();
+  exampleSelect.onchange = () => {
+    show();
+    if (exampleSelect.value)
+      location.assign(`${location.pathname}?board=${encodeURIComponent(profile.id)}&avm=./fixtures/${encodeURIComponent(exampleSelect.value)}`);
+  };
+}).catch(() => { exampleSelect.closest(".pickers")?.setAttribute("hidden", ""); });
 
 // `mix m5.emulate` serves /__version (a counter bumped after each successful pack); reload when it changes.
 if (params.get("dev") === "1") {

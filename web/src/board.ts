@@ -6,7 +6,7 @@ export interface BoardProfile {
   screen: { width: number; height: number; scale: number; x: number; y: number };
   buttons: BoardButton[];
   peripherals: { speaker: boolean; led: boolean; battery: boolean };
-  chip: string; firmwareManifest: string; appOffset: number; deviceImage: string;
+  chip: string; firmwareManifest: string; firmwareRuntimes?: string; appOffset: number; deviceImage: string;
 }
 const validate = new Ajv({ allErrors: true }).compile(schema);
 export function parseBoardProfile(json: unknown): BoardProfile {

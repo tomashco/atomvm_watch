@@ -64,9 +64,35 @@ export function esptoolFlasher(log: Log): Flasher {
   };
 }
 
+/** One runtime the site mirrors; `manifest` is resolved against the runtimes list's directory. */
+export interface Runtime { version: string; description: string; manifest: string }
+
+const dirOf = (url: string) => url.slice(0, url.lastIndexOf("/") + 1);
+
+/**
+ * The runtimes listed by the board's `firmwareRuntimes` file, with manifest paths made relative to
+ * the page. Without a list (no profile field, or the site has none, as in local dev) it is the one
+ * runtime at `firmwareManifest`.
+ */
+export async function loadRuntimes(profile: BoardProfile): Promise<Runtime[]> {
+  const fallback = [{ version: "latest", description: "The runtime the site publishes.", manifest: profile.firmwareManifest }];
+  if (!profile.firmwareRuntimes) return fallback;
+  try {
+    const res = await fetch(profile.firmwareRuntimes);
+    if (!res.ok) return fallback;
+    const list = (await res.json()) as Runtime[];
+    if (!Array.isArray(list) || list.length === 0) return fallback;
+    return list.map((r) => ({ ...r, manifest: dirOf(profile.firmwareRuntimes!) + r.manifest }));
+  } catch { return fallback; }
+}
+
 export function setupInstaller(
   profile: BoardProfile,
-  els: { connect: HTMLButtonElement; runtime: HTMLButtonElement; app: HTMLButtonElement; chip: HTMLElement; progress: HTMLProgressElement; section?: HTMLElement },
+  els: {
+    connect: HTMLButtonElement; runtime: HTMLButtonElement; app: HTMLButtonElement; chip: HTMLElement; progress: HTMLProgressElement; section?: HTMLElement;
+    /** Runtime selector and the selected runtime's description; without them the installer uses `firmwareManifest`. */
+    runtimeSelect?: HTMLSelectElement; runtimeInfo?: HTMLElement;
+  },
   currentApp: () => LoadedApp | undefined,
   con: Log,
   flasher?: Flasher,
@@ -76,6 +102,18 @@ export function setupInstaller(
     flasher = esptoolFlasher(con);
   }
   const fl = flasher;
+  let runtimes: Runtime[] = [{ version: "latest", description: "", manifest: profile.firmwareManifest }];
+  const selected = () => runtimes[els.runtimeSelect?.selectedIndex ?? 0] ?? runtimes[0];
+  const showInfo = () => { if (els.runtimeInfo) els.runtimeInfo.textContent = selected().description; };
+  if (els.runtimeSelect) {
+    const select = els.runtimeSelect;
+    select.addEventListener("change", showInfo);
+    void loadRuntimes(profile).then((list) => {
+      runtimes = list;
+      select.replaceChildren(...list.map((r) => new Option(r.version === "latest" ? r.version : `v${r.version}`, r.version)));
+      showInfo();
+    });
+  }
   let port: unknown;
   let connected = false;
   let working = false;
@@ -128,12 +166,14 @@ export function setupInstaller(
     } catch (e) { con.err(`${label} failed: ${(e as Error).message}`); }
   });
   els.runtime.addEventListener("click", () => install("Install runtime", async () => {
-    const res = await fetch(profile.firmwareManifest);
-    if (!res.ok) throw new Error(`firmware manifest ${profile.firmwareManifest} not found (${res.status}); no runtime is published at this address yet`);
+    const { version, manifest: url } = selected();
+    con.out(`runtime ${version}`);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`firmware manifest ${url} not found (${res.status}); no runtime is published at this address yet`);
     const manifest = parseManifest(await res.json());
     if (manifest.chip.toUpperCase() !== profile.chip.toUpperCase()) throw new Error(`manifest is for ${manifest.chip}, this board needs ${profile.chip}`);
     if (manifest.appOffset !== profile.appOffset) throw new Error(`manifest appOffset 0x${manifest.appOffset.toString(16)} does not match the board profile's 0x${profile.appOffset.toString(16)}`);
-    const base = profile.firmwareManifest.slice(0, profile.firmwareManifest.lastIndexOf("/") + 1);
+    const base = dirOf(url);
     return Promise.all(manifest.parts.map(async (p) => {
       const r = await fetch(base + p.path);
       if (!r.ok) throw new Error(`${p.path} not found (${r.status})`);

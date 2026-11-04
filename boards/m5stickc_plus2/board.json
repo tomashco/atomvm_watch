@@ -11,6 +11,7 @@
   "peripherals": { "speaker": true, "led": true, "battery": true },
   "chip": "ESP32",
   "firmwareManifest": "firmware/manifest-m5stickc_plus2.json",
+  "firmwareRuntimes": "firmware/runtimes-m5stickc_plus2.json",
   "appOffset": 2424832,
   "deviceImage": "device.svg"
 }
